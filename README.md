@@ -10,6 +10,51 @@
 
 这个项目适合自建一个统一入口，把多个 OpenRouter / OpenAI-compatible 上游收敛成一个稳定的下游地址。
 
+## 系统架构
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              Downstream Clients                             │
+│                    OpenAI SDK / Apps / Agents / Tools                       │
+└───────────────────────────────────┬──────────────────────────────────────────┘
+                                    │
+                                    │  /v1/chat/completions
+                                    │  /v1/models
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            Chain-AI-Gateway                                 │
+│                                                                              │
+│  Request Router               Failover Policy            Admin & Control      │
+│  - model passthrough          - only retry 429          - upstream sync      │
+│  - no fixed upstream model    - switch API key          - bulk model test    │
+│  - model not found =>         - other errors return     - report summary     │
+│    openrouter/free              directly to client      - live dashboard     │
+│                                                                              │
+│  Response Path                Persistence               Observability         │
+│  - OpenAI-compatible          - SQLite                  - request logs        │
+│  - stream + text              - test snapshots          - provider status     │
+│  - keep tool-call structure   - metrics                 - model metrics       │
+└───────────────┬──────────────────────────┬──────────────────────┬────────────┘
+                │                          │                      │
+                │                          │                      │
+                ▼                          ▼                      ▼
+     ┌───────────────────┐      ┌───────────────────┐   ┌────────────────────┐
+     │ Upstream Key Pool │      │   gateway.db      │   │   Admin Console    │
+     │ provider A / B... │      │ logs / metrics /  │   │ static/index.html  │
+     │ 429 => next key   │      │ reports / state   │   │ status / testing   │
+     └─────────┬─────────┘      └───────────────────┘   └────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    OpenRouter / OpenAI-compatible Upstreams                  │
+│                                                                              │
+│   requested model exists      => request same model                          │
+│   requested model not found   => route to openrouter/free                    │
+│   upstream returns 429        => fail over to next API key                   │
+│   upstream returns other err  => return error to downstream                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
 ## 核心特性
 
 - OpenAI 兼容接口
