@@ -784,8 +784,32 @@ a{color:inherit}
 }
 .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:var(--muted)}
 .kpi-value{margin-top:14px;font-size:34px;font-weight:800;letter-spacing:-.04em}
+.kpi-value-inner{
+  display:inline-block;
+  min-width:.6ch;
+  transition:transform .18s ease, filter .18s ease, opacity .18s ease;
+}
+.kpi-value-inner.animating{
+  transform:translateY(-1px) scale(1.015);
+  filter:drop-shadow(0 0 14px rgba(198,90,17,.18));
+}
+.kpi-value-split{
+  display:inline-flex;
+  align-items:baseline;
+  gap:4px;
+}
 .kpi-note{margin-top:8px;font-size:13px;color:#4b5563;line-height:1.6}
 .kpi-note-line{display:block}
+.kpi-note-number{
+  display:inline-block;
+  min-width:.4ch;
+  transition:transform .18s ease, opacity .18s ease, filter .18s ease;
+}
+.kpi-note-number.animating{
+  transform:translateY(-1px);
+  opacity:.96;
+  filter:drop-shadow(0 0 10px rgba(15,118,110,.12));
+}
 .kpi-card.accent .kpi-value{color:var(--accent)}
 .kpi-card.teal .kpi-value{color:var(--teal)}
 .kpi-card.warn .kpi-value{color:var(--warn)}
@@ -1649,6 +1673,10 @@ const state = {
   upstreamModelTestReportPages: 1,
   upstreamModelTestReportTotal: 0,
   latestUpstreamModelTestReport: null,
+  overviewKpiSnapshot: {},
+  overviewKpiRates: {},
+  overviewKpiMotion: null,
+  overviewKpiMotionRaf: 0,
 };
 
 const promptMagicSeeds = [
@@ -1674,6 +1702,210 @@ function fmtNum(num) {
 
 function fmtPct(num) {
   return `${Number(num || 0).toFixed(1)}%`;
+}
+
+function stopOverviewKpiMotion() {
+  if (state.overviewKpiMotionRaf) {
+    window.cancelAnimationFrame(state.overviewKpiMotionRaf);
+    state.overviewKpiMotionRaf = 0;
+  }
+}
+
+function blendPositiveRate(previousRate, instantRate) {
+  const prev = Math.max(0, Number(previousRate || 0));
+  const next = Math.max(0, Number(instantRate || 0));
+  if (!prev) return next;
+  if (!next) return 0;
+  return prev * 0.35 + next * 0.65;
+}
+
+function buildOverviewKpiSnapshot(today, providers) {
+  return {
+    today_total: Number(today.total || 0),
+    today_success: Number(today.success || 0),
+    today_failures: Number(today.total_failures || 0),
+    today_success_rate: Number(today.success_rate || 0),
+    today_prompt_tokens: Number(today.total_prompt_tokens || 0),
+    today_completion_tokens: Number(today.total_completion_tokens || 0),
+    today_tokens: Number((today.total_prompt_tokens || 0) + (today.total_completion_tokens || 0)),
+    today_actual_tps: Number(today.actual_tps || 0),
+    today_failover: Number(today.failover || 0),
+    today_error: Number(today.error || 0),
+    today_aborted: Number(today.aborted || 0),
+    today_pending: Number(today.pending || 0),
+    providers_available: Number(providers.available || 0),
+    providers_total: Number(providers.total || 0),
+    sampled_at: performance.now(),
+  };
+}
+
+function getCurrentOverviewKpiDisplay(now = performance.now()) {
+  const motion = state.overviewKpiMotion;
+  if (!motion) return state.overviewKpiSnapshot || null;
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const progress = clamp((now - motion.ramp_started_at) / motion.ramp_duration, 0, 1);
+  const eased = 1 - Math.pow(1 - progress, 3);
+  const display = {
+    today_total: motion.from_snapshot.today_total + (motion.target_snapshot.today_total - motion.from_snapshot.today_total) * eased,
+    today_success: motion.from_snapshot.today_success + (motion.target_snapshot.today_success - motion.from_snapshot.today_success) * eased,
+    today_failures: motion.from_snapshot.today_failures + (motion.target_snapshot.today_failures - motion.from_snapshot.today_failures) * eased,
+    today_prompt_tokens: motion.from_snapshot.today_prompt_tokens + (motion.target_snapshot.today_prompt_tokens - motion.from_snapshot.today_prompt_tokens) * eased,
+    today_completion_tokens: motion.from_snapshot.today_completion_tokens + (motion.target_snapshot.today_completion_tokens - motion.from_snapshot.today_completion_tokens) * eased,
+    today_tokens: motion.from_snapshot.today_tokens + (motion.target_snapshot.today_tokens - motion.from_snapshot.today_tokens) * eased,
+    today_actual_tps: motion.from_snapshot.today_actual_tps + (motion.target_snapshot.today_actual_tps - motion.from_snapshot.today_actual_tps) * eased,
+    today_failover: motion.from_snapshot.today_failover + (motion.target_snapshot.today_failover - motion.from_snapshot.today_failover) * eased,
+    today_error: motion.from_snapshot.today_error + (motion.target_snapshot.today_error - motion.from_snapshot.today_error) * eased,
+    today_aborted: motion.from_snapshot.today_aborted + (motion.target_snapshot.today_aborted - motion.from_snapshot.today_aborted) * eased,
+    today_pending: motion.from_snapshot.today_pending + (motion.target_snapshot.today_pending - motion.from_snapshot.today_pending) * eased,
+    providers_available: motion.from_snapshot.providers_available + (motion.target_snapshot.providers_available - motion.from_snapshot.providers_available) * eased,
+    providers_total: motion.from_snapshot.providers_total + (motion.target_snapshot.providers_total - motion.from_snapshot.providers_total) * eased,
+  };
+  if (progress >= 1) {
+    const liveElapsed = Math.max(0, now - motion.target_snapshot.sampled_at);
+    display.today_total = motion.target_snapshot.today_total + motion.rates.today_total * liveElapsed;
+    display.today_success = motion.target_snapshot.today_success + motion.rates.today_success * liveElapsed;
+    display.today_failures = motion.target_snapshot.today_failures + motion.rates.today_failures * liveElapsed;
+    display.today_prompt_tokens = motion.target_snapshot.today_prompt_tokens + motion.rates.today_prompt_tokens * liveElapsed;
+    display.today_completion_tokens = motion.target_snapshot.today_completion_tokens + motion.rates.today_completion_tokens * liveElapsed;
+    display.today_tokens = motion.target_snapshot.today_tokens + motion.rates.today_tokens * liveElapsed;
+    display.today_failover = motion.target_snapshot.today_failover + motion.rates.today_failover * liveElapsed;
+    display.today_error = motion.target_snapshot.today_error + motion.rates.today_error * liveElapsed;
+    display.today_aborted = motion.target_snapshot.today_aborted + motion.rates.today_aborted * liveElapsed;
+    display.today_pending = motion.target_snapshot.today_pending;
+    display.providers_available = motion.target_snapshot.providers_available;
+    display.providers_total = motion.target_snapshot.providers_total;
+    const liveTps = Math.max(0, motion.rates.today_completion_tokens * 1000);
+    display.today_actual_tps = liveTps > 0.01
+      ? liveTps
+      : Math.max(0, motion.target_snapshot.today_actual_tps);
+  }
+  display.today_total = Math.max(0, display.today_total);
+  display.today_success = Math.max(0, display.today_success);
+  display.today_failures = Math.max(0, display.today_failures);
+  display.today_prompt_tokens = Math.max(0, display.today_prompt_tokens);
+  display.today_completion_tokens = Math.max(0, display.today_completion_tokens);
+  display.today_tokens = Math.max(0, display.today_tokens);
+  display.today_failover = Math.max(0, display.today_failover);
+  display.today_error = Math.max(0, display.today_error);
+  display.today_aborted = Math.max(0, display.today_aborted);
+  display.today_pending = Math.max(0, display.today_pending);
+  display.providers_available = Math.max(0, display.providers_available);
+  display.providers_total = Math.max(0, display.providers_total);
+  display.today_success_rate = display.today_total > 0
+    ? (display.today_success / display.today_total) * 100
+    : motion.target_snapshot.today_success_rate;
+  display.today_actual_tps = Math.max(0, display.today_actual_tps || 0);
+  return display;
+}
+
+function renderOverviewKpiDisplay(display) {
+  if (!display) return;
+  const selectEls = key => Array.from(document.querySelectorAll(`[data-kpi-key="${key}"]`));
+  const setText = (els, text) => els.forEach(el => { el.textContent = text; });
+  const totalEls = selectEls('today_total');
+  const successRateEls = selectEls('today_success_rate');
+  const failuresEls = selectEls('today_failures');
+  const providersAvailableEls = selectEls('providers_available');
+  const providersTotalEls = selectEls('providers_total');
+  const tokenEls = {
+    today_tokens: selectEls('today_tokens'),
+    today_prompt_tokens: selectEls('today_prompt_tokens'),
+    today_completion_tokens: selectEls('today_completion_tokens'),
+    today_actual_tps: selectEls('today_actual_tps'),
+    today_success: selectEls('today_success'),
+    today_failover: selectEls('today_failover'),
+    today_error: selectEls('today_error'),
+    today_aborted: selectEls('today_aborted'),
+    today_pending: selectEls('today_pending'),
+  };
+  if (!totalEls.length || !successRateEls.length || !failuresEls.length || !providersAvailableEls.length || !providersTotalEls.length) return;
+
+  setText(totalEls, fmtNum(Math.max(0, Math.round(display.today_total || 0))));
+  setText(successRateEls, `${Math.max(0, Number(display.today_success_rate || 0)).toFixed(1)}%`);
+  setText(failuresEls, fmtNum(Math.max(0, Math.round(display.today_failures || 0))));
+  setText(providersAvailableEls, String(Math.max(0, Math.round(display.providers_available || 0))));
+  setText(providersTotalEls, String(Math.max(0, Math.round(display.providers_total || 0))));
+  if (tokenEls.today_tokens.length) setText(tokenEls.today_tokens, fmtNum(Math.max(0, Math.round(display.today_tokens || 0))));
+  if (tokenEls.today_prompt_tokens.length) setText(tokenEls.today_prompt_tokens, fmtNum(Math.max(0, Math.round(display.today_prompt_tokens || 0))));
+  if (tokenEls.today_completion_tokens.length) setText(tokenEls.today_completion_tokens, fmtNum(Math.max(0, Math.round(display.today_completion_tokens || 0))));
+  if (tokenEls.today_actual_tps.length) setText(tokenEls.today_actual_tps, `${Math.max(0, Number(display.today_actual_tps || 0)).toFixed(1)}`);
+  if (tokenEls.today_success.length) setText(tokenEls.today_success, fmtNum(Math.max(0, Math.round(display.today_success || 0))));
+  if (tokenEls.today_failover.length) setText(tokenEls.today_failover, fmtNum(Math.max(0, Math.round(display.today_failover || 0))));
+  if (tokenEls.today_error.length) setText(tokenEls.today_error, fmtNum(Math.max(0, Math.round(display.today_error || 0))));
+  if (tokenEls.today_aborted.length) setText(tokenEls.today_aborted, fmtNum(Math.max(0, Math.round(display.today_aborted || 0))));
+  if (tokenEls.today_pending.length) setText(tokenEls.today_pending, fmtNum(Math.max(0, Math.round(display.today_pending || 0))));
+
+  const motion = state.overviewKpiMotion;
+  const now = performance.now();
+  const inRamp = Boolean(motion) && (now - motion.ramp_started_at) < motion.ramp_duration;
+  const hasLiveRate = Boolean(motion) && (
+    motion.rates.today_total > 0.00001 ||
+    motion.rates.today_success > 0.00001 ||
+    motion.rates.today_failures > 0.00001 ||
+    motion.rates.today_tokens > 0.00001 ||
+    motion.rates.today_prompt_tokens > 0.00001 ||
+    motion.rates.today_completion_tokens > 0.00001 ||
+    motion.rates.today_failover > 0.00001 ||
+    motion.rates.today_error > 0.00001 ||
+    motion.rates.today_aborted > 0.00001
+  );
+  [totalEls, successRateEls, failuresEls].flat().forEach(el => el.classList.toggle('animating', inRamp || hasLiveRate));
+  Object.values(tokenEls).flat().forEach(el => el.classList.toggle('animating', inRamp || hasLiveRate));
+  [providersAvailableEls, providersTotalEls].flat().forEach(el => el.classList.toggle('animating', inRamp && Boolean(motion?.has_provider_change)));
+}
+
+function animateOverviewKpis(snapshot) {
+  const previousRaw = state.overviewKpiSnapshot && Object.keys(state.overviewKpiSnapshot).length ? state.overviewKpiSnapshot : null;
+  const fromDisplay = getCurrentOverviewKpiDisplay(snapshot.sampled_at) || snapshot;
+  const elapsed = previousRaw ? Math.max(snapshot.sampled_at - previousRaw.sampled_at, 1) : 0;
+  const nextRates = {
+    today_total: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_total, Math.max(snapshot.today_total - previousRaw.today_total, 0) / elapsed) : 0,
+    today_success: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_success, Math.max(snapshot.today_success - previousRaw.today_success, 0) / elapsed) : 0,
+    today_failures: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_failures, Math.max(snapshot.today_failures - previousRaw.today_failures, 0) / elapsed) : 0,
+    today_prompt_tokens: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_prompt_tokens, Math.max(snapshot.today_prompt_tokens - previousRaw.today_prompt_tokens, 0) / elapsed) : 0,
+    today_completion_tokens: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_completion_tokens, Math.max(snapshot.today_completion_tokens - previousRaw.today_completion_tokens, 0) / elapsed) : 0,
+    today_tokens: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_tokens, Math.max(snapshot.today_tokens - previousRaw.today_tokens, 0) / elapsed) : 0,
+    today_failover: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_failover, Math.max(snapshot.today_failover - previousRaw.today_failover, 0) / elapsed) : 0,
+    today_error: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_error, Math.max(snapshot.today_error - previousRaw.today_error, 0) / elapsed) : 0,
+    today_aborted: previousRaw ? blendPositiveRate(state.overviewKpiRates.today_aborted, Math.max(snapshot.today_aborted - previousRaw.today_aborted, 0) / elapsed) : 0,
+  };
+  state.overviewKpiRates = nextRates;
+  state.overviewKpiSnapshot = { ...snapshot };
+  state.overviewKpiMotion = {
+    from_snapshot: {
+      today_total: Number(fromDisplay.today_total || 0),
+      today_success: Number(fromDisplay.today_success || 0),
+      today_failures: Number(fromDisplay.today_failures || 0),
+      today_prompt_tokens: Number(fromDisplay.today_prompt_tokens || 0),
+      today_completion_tokens: Number(fromDisplay.today_completion_tokens || 0),
+      today_tokens: Number(fromDisplay.today_tokens || 0),
+      today_actual_tps: Number(fromDisplay.today_actual_tps || 0),
+      today_failover: Number(fromDisplay.today_failover || 0),
+      today_error: Number(fromDisplay.today_error || 0),
+      today_aborted: Number(fromDisplay.today_aborted || 0),
+      today_pending: Number(fromDisplay.today_pending || 0),
+      providers_available: Number(fromDisplay.providers_available || 0),
+      providers_total: Number(fromDisplay.providers_total || 0),
+    },
+    target_snapshot: { ...snapshot },
+    rates: nextRates,
+    ramp_started_at: snapshot.sampled_at,
+    ramp_duration: 880,
+    has_provider_change: previousRaw
+      ? previousRaw.providers_available !== snapshot.providers_available || previousRaw.providers_total !== snapshot.providers_total
+      : false,
+  };
+  stopOverviewKpiMotion();
+  const tick = now => {
+    if (state.page !== 'overview') {
+      stopOverviewKpiMotion();
+      return;
+    }
+    renderOverviewKpiDisplay(getCurrentOverviewKpiDisplay(now));
+    state.overviewKpiMotionRaf = window.requestAnimationFrame(tick);
+  };
+  renderOverviewKpiDisplay(getCurrentOverviewKpiDisplay(snapshot.sampled_at));
+  state.overviewKpiMotionRaf = window.requestAnimationFrame(tick);
 }
 
 function titleCaseWord(value) {
@@ -2239,29 +2471,34 @@ async function loadOverview() {
 function renderOverview(data) {
   const today = data.today || {};
   const providers = data.providers || {};
+  const kpiSnapshot = buildOverviewKpiSnapshot(today, providers);
   document.getElementById('overview-kpis').innerHTML = [
     {
+      key: 'today_total',
       tone: 'accent',
       label: '今日请求',
-      value: fmtNum(today.total),
-      note: `<span class="kpi-note-line">${fmtNum((today.total_prompt_tokens || 0) + (today.total_completion_tokens || 0))} tokens · 📤 ${fmtNum(today.total_prompt_tokens || 0)} · 📥 ${fmtNum(today.total_completion_tokens || 0)}</span><span class="kpi-note-line">⚡ 📥 ${Number(today.actual_tps || 0).toFixed(1)} tok/s</span>`,
+      value: `<span class="kpi-value-inner" data-kpi-key="today_total">${fmtNum(today.total)}</span>`,
+      note: `<span class="kpi-note-line"><span class="kpi-note-number" data-kpi-key="today_tokens">${fmtNum((today.total_prompt_tokens || 0) + (today.total_completion_tokens || 0))}</span> tokens · 📤 <span class="kpi-note-number" data-kpi-key="today_prompt_tokens">${fmtNum(today.total_prompt_tokens || 0)}</span> · 📥 <span class="kpi-note-number" data-kpi-key="today_completion_tokens">${fmtNum(today.total_completion_tokens || 0)}</span></span><span class="kpi-note-line">⚡ 📥 <span class="kpi-note-number" data-kpi-key="today_actual_tps">${Number(today.actual_tps || 0).toFixed(1)}</span> tok/s</span>`,
     },
     {
+      key: 'today_success_rate',
       tone: 'teal',
       label: '今日成功率',
-      value: fmtPct(today.success_rate),
-      note: `${today.success || 0} success / ${today.total_failures || 0} failure${(today.pending || 0) ? ` · ${today.pending} pending` : ''}`,
+      value: `<span class="kpi-value-inner" data-kpi-key="today_success_rate">${fmtPct(today.success_rate)}</span>`,
+      note: `<span class="kpi-note-line"><span class="kpi-note-number" data-kpi-key="today_success">${fmtNum(today.success || 0)}</span> success / <span class="kpi-note-number" data-kpi-key="today_failures">${fmtNum(today.total_failures || 0)}</span> failure${(today.pending || 0) ? ` · <span class="kpi-note-number" data-kpi-key="today_pending">${fmtNum(today.pending || 0)}</span> pending` : ''}</span>`,
     },
     {
+      key: 'today_failures',
       tone: 'warn',
       label: '今日失败',
-      value: fmtNum(today.total_failures || 0),
-      note: `failover ${fmtNum(today.failover || 0)} · error ${fmtNum(today.error || 0)}${(today.aborted || 0) ? ` · aborted ${fmtNum(today.aborted || 0)}` : ''}`,
+      value: `<span class="kpi-value-inner" data-kpi-key="today_failures">${fmtNum(today.total_failures || 0)}</span>`,
+      note: `<span class="kpi-note-line">failover <span class="kpi-note-number" data-kpi-key="today_failover">${fmtNum(today.failover || 0)}</span> · error <span class="kpi-note-number" data-kpi-key="today_error">${fmtNum(today.error || 0)}</span>${(today.aborted || 0) ? ` · aborted <span class="kpi-note-number" data-kpi-key="today_aborted">${fmtNum(today.aborted || 0)}</span>` : ''}</span>`,
     },
     {
+      key: 'providers_available',
       tone: 'ok',
       label: '可用上游',
-      value: `${providers.available || 0}/${providers.total || 0}`,
+      value: `<span class="kpi-value-split"><span class="kpi-value-inner" data-kpi-key="providers_available">${providers.available || 0}</span><span>/</span><span class="kpi-value-inner" data-kpi-key="providers_total">${providers.total || 0}</span></span>`,
       note: providers.down ? `${providers.down} 个熔断中` : '全部可用',
     },
   ].map(item => `
@@ -2271,6 +2508,7 @@ function renderOverview(data) {
       <div class="kpi-note">${item.note}</div>
     </div>
   `).join('');
+  animateOverviewKpis(kpiSnapshot);
 
   const issues = data.recent_issues || [];
   document.getElementById('overview-issues').innerHTML = issues.length ? `
