@@ -1,0 +1,3393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chain-AI Gateway Admin</title>
+<style>
+:root{
+  --bg:#efe7db;
+  --bg-accent:#f8f3eb;
+  --panel:#fffaf2;
+  --panel-strong:#ffffff;
+  --sidebar:#1f2937;
+  --sidebar-muted:#94a3b8;
+  --line:#dccdb8;
+  --line-strong:#c6b08f;
+  --text:#1f2933;
+  --muted:#6b7280;
+  --accent:#c65a11;
+  --accent-soft:#f3ddc8;
+  --teal:#0f766e;
+  --teal-soft:#d9f1ee;
+  --danger:#b42318;
+  --danger-soft:#fbe7e6;
+  --warn:#b7791f;
+  --warn-soft:#fbefd8;
+  --ok:#166534;
+  --ok-soft:#e1f2e7;
+  --shadow:0 24px 50px rgba(86,63,26,.08);
+  --mono:"SFMono-Regular","JetBrains Mono","Consolas",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%}
+body{
+  font-family:"Avenir Next","PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(198,90,17,.08), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(15,118,110,.10), transparent 25%),
+    linear-gradient(180deg, #f7f1e7 0%, var(--bg) 100%);
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+a{color:inherit}
+.shell{display:flex;min-height:100vh}
+.sidebar{
+  width:248px;
+  background:linear-gradient(180deg, #16202d 0%, #1f2937 100%);
+  color:#f8fafc;
+  padding:24px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:22px;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow-y:auto;
+}
+.brand{
+  padding:18px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.brand-mark{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  background:linear-gradient(135deg, #f59e0b, #c65a11);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  margin-bottom:14px;
+}
+.brand-title{font-size:20px;font-weight:700;letter-spacing:.02em}
+.brand-sub{font-size:12px;color:var(--sidebar-muted);margin-top:4px;line-height:1.6}
+.nav-block{display:flex;flex-direction:column;gap:10px}
+.nav-block-chat{margin-top:auto}
+.nav-label{
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:rgba(148,163,184,.75);
+  padding:0 12px;
+}
+.nav-item{
+  width:100%;
+  border:none;
+  background:transparent;
+  color:var(--sidebar-muted);
+  text-align:left;
+  padding:13px 14px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  transition:.18s ease;
+}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.active{
+  background:linear-gradient(135deg, rgba(198,90,17,.18), rgba(15,118,110,.16));
+  color:#fff;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.nav-icon{
+  width:30px;
+  height:30px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.06);
+  flex-shrink:0;
+}
+.sidebar-footer{
+  padding:14px 16px;
+  border-radius:16px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.06);
+  color:var(--sidebar-muted);
+  font-size:12px;
+  line-height:1.7;
+}
+.sidebar-footer-note + .sidebar-footer-note{margin-top:2px}
+.sidebar-demo{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.sidebar-demo-title{
+  font-size:12px;
+  color:#f8fafc;
+  font-weight:700;
+  letter-spacing:.04em;
+}
+.sidebar-demo-sub{
+  margin-top:6px;
+  color:var(--sidebar-muted);
+  line-height:1.6;
+}
+.sidebar-demo-url{
+  margin-top:10px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:rgba(15,23,42,.45);
+  border:1px solid rgba(255,255,255,.08);
+  color:#dbeafe;
+  font-size:11px;
+  word-break:break-all;
+}
+.sidebar-field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:10px;
+}
+.sidebar-field-label{
+  color:#cbd5e1;
+  font-size:11px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.sidebar-input,
+.sidebar-select,
+.sidebar-textarea{
+  width:100%;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(15,23,42,.55);
+  color:#f8fafc;
+  padding:10px 11px;
+}
+.sidebar-input::placeholder,
+.sidebar-textarea::placeholder{color:#94a3b8}
+.sidebar-select{
+  appearance:none;
+  background-image:linear-gradient(45deg, transparent 50%, #94a3b8 50%), linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position:calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+  background-size:6px 6px, 6px 6px;
+  background-repeat:no-repeat;
+  padding-right:30px;
+}
+.sidebar-textarea{
+  min-height:74px;
+  resize:vertical;
+  line-height:1.55;
+}
+.sidebar-preset-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
+}
+.sidebar-chip{
+  border:none;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  color:#e2e8f0;
+  background:rgba(255,255,255,.08);
+}
+.sidebar-chip:hover{background:rgba(255,255,255,.12)}
+.sidebar-chip[disabled]{opacity:.6;cursor:not-allowed}
+.sidebar-test-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:10px;
+}
+.sidebar-check{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#cbd5e1;
+  font-size:12px;
+  white-space:nowrap;
+}
+.sidebar-check input{
+  width:15px;
+  height:15px;
+  accent-color:#c65a11;
+}
+.sidebar-test-btn{
+  flex:1;
+  border:none;
+  border-radius:12px;
+  padding:10px 12px;
+  background:linear-gradient(135deg, rgba(198,90,17,.92), rgba(15,118,110,.85));
+  color:#fff;
+  font-weight:700;
+}
+.sidebar-test-btn[disabled]{
+  opacity:.6;
+  cursor:not-allowed;
+}
+.sidebar-result{
+  margin-top:10px;
+  padding:10px 11px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(2,6,23,.48);
+  color:#dbeafe;
+  display:flex;
+  flex-direction:column;
+  max-height:clamp(180px, 42vh, 460px);
+  overflow:hidden;
+}
+.sidebar-result.empty{color:var(--sidebar-muted)}
+.sidebar-result-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  color:#f8fafc;
+  font-size:12px;
+  font-weight:700;
+}
+.sidebar-result-meta{
+  margin-top:6px;
+  color:#94a3b8;
+  font-size:11px;
+  line-height:1.6;
+}
+.sidebar-result-body{
+  margin-top:8px;
+  white-space:pre-wrap;
+  word-break:break-word;
+  font-size:12px;
+  line-height:1.6;
+  overflow-y:auto;
+  overflow-x:hidden;
+  min-height:0;
+  padding-right:4px;
+}
+.sidebar-result-body::-webkit-scrollbar{
+  width:8px;
+}
+.sidebar-result-body::-webkit-scrollbar-thumb{
+  background:rgba(148,163,184,.45);
+  border-radius:999px;
+}
+.sidebar-result-body::-webkit-scrollbar-track{
+  background:rgba(15,23,42,.22);
+  border-radius:999px;
+}
+.chat-page-grid{
+  display:grid;
+  grid-template-columns:minmax(0, 1.15fr) minmax(280px, .85fr);
+  gap:18px;
+}
+.chat-stage{
+  background:linear-gradient(180deg, #16202d 0%, #1f2937 100%);
+  border-radius:24px;
+  padding:18px;
+  border:1px solid rgba(255,255,255,.06);
+}
+.chat-stage .sidebar-demo{
+  margin-top:0;
+  padding-top:0;
+  border-top:none;
+}
+.chat-hint-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.chat-hint-item{
+  padding:14px 16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.55);
+  border:1px solid rgba(220,205,184,.9);
+}
+.chat-hint-title{
+  font-size:13px;
+  font-weight:700;
+  color:#1f2937;
+}
+.chat-hint-body{
+  margin-top:6px;
+  font-size:13px;
+  line-height:1.7;
+  color:#4b5563;
+  word-break:break-word;
+}
+.catalog-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.catalog-stat{
+  padding:14px 16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.58);
+  border:1px solid rgba(220,205,184,.88);
+}
+.catalog-stat-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+}
+.catalog-stat-value{
+  margin-top:10px;
+  font-size:26px;
+  font-weight:800;
+  letter-spacing:-.03em;
+  color:#1f2937;
+}
+.catalog-stat-note{
+  margin-top:6px;
+  font-size:12px;
+  color:#6b7280;
+  line-height:1.6;
+}
+.catalog-toolbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:16px;
+  flex-wrap:wrap;
+}
+.catalog-search{
+  flex:1;
+  min-width:240px;
+}
+.catalog-group-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  margin-top:16px;
+}
+.catalog-group{
+  border-radius:20px;
+  border:1px solid rgba(220,205,184,.88);
+  background:rgba(255,255,255,.6);
+  overflow:hidden;
+}
+.catalog-group summary{
+  list-style:none;
+  cursor:pointer;
+  padding:14px 16px;
+}
+.catalog-group summary::-webkit-details-marker{display:none}
+.catalog-group summary::after{
+  content:"+";
+  font-weight:700;
+  color:#6b7280;
+}
+.catalog-group[open] summary::after{content:"-"}
+.catalog-group-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.catalog-group-title{
+  font-size:14px;
+  font-weight:700;
+  color:#1f2937;
+}
+.catalog-group-meta{
+  margin-top:4px;
+  font-size:12px;
+  color:#6b7280;
+}
+.catalog-group-count{
+  flex-shrink:0;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(198,90,17,.12);
+  color:#9a3412;
+  font-size:11px;
+  font-weight:700;
+}
+.catalog-models{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:0 16px 16px;
+}
+.catalog-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#fffaf2;
+  border:1px solid rgba(220,205,184,.92);
+  font-size:11px;
+  color:#334155;
+}
+.catalog-pill.mono{
+  font-family:var(--mono);
+}
+.catalog-pill-free{
+  padding:2px 6px;
+  border-radius:999px;
+  background:rgba(22,101,52,.10);
+  color:#166534;
+  font-size:10px;
+  font-weight:700;
+  text-transform:uppercase;
+}
+.catalog-test-mark{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:14px;
+  height:14px;
+  font-size:11px;
+  line-height:1;
+  flex-shrink:0;
+}
+.catalog-test-mark.success{color:#15803d}
+.catalog-test-mark.error{color:#dc2626}
+.catalog-test-mark.running{color:#d97706}
+.catalog-progress-shell{
+  margin-top:16px;
+  padding:14px 16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.6);
+  border:1px solid rgba(220,205,184,.88);
+}
+.catalog-progress-shell.empty{
+  color:#6b7280;
+  font-size:13px;
+  line-height:1.7;
+}
+.catalog-progress-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.catalog-progress-title{
+  font-size:14px;
+  font-weight:700;
+  color:#1f2937;
+}
+.catalog-progress-meta{
+  margin-top:4px;
+  font-size:12px;
+  color:#6b7280;
+  line-height:1.6;
+}
+.catalog-progress-value{
+  flex-shrink:0;
+  font-size:22px;
+  font-weight:800;
+  letter-spacing:-.03em;
+  color:#1f2937;
+}
+.catalog-progress-bar{
+  margin-top:12px;
+  width:100%;
+  height:10px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(220,205,184,.66);
+}
+.catalog-progress-fill{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#15803d 0%,#d97706 55%,#dc2626 100%);
+  transition:width .22s ease;
+}
+.catalog-progress-summary{
+  margin-top:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.catalog-progress-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#fffaf2;
+  border:1px solid rgba(220,205,184,.92);
+  font-size:11px;
+  color:#475569;
+}
+.catalog-progress-chip strong{
+  font-size:12px;
+  color:#1f2937;
+}
+.report-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:16px;
+}
+.report-card{
+  padding:16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.6);
+  border:1px solid rgba(220,205,184,.88);
+}
+.report-card.latest{
+  background:linear-gradient(135deg,rgba(255,250,242,.92),rgba(255,255,255,.72));
+}
+.report-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.report-title{
+  font-size:14px;
+  font-weight:700;
+  color:#1f2937;
+}
+.report-meta{
+  margin-top:4px;
+  font-size:12px;
+  color:#6b7280;
+  line-height:1.6;
+}
+.report-badge{
+  flex-shrink:0;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+}
+.report-badge.ready{
+  background:rgba(22,101,52,.12);
+  color:#166534;
+}
+.report-badge.fallback{
+  background:rgba(180,83,9,.12);
+  color:#92400e;
+}
+.report-badge.pending,
+.report-badge.generating{
+  background:rgba(217,119,6,.12);
+  color:#b45309;
+}
+.report-summary{
+  margin-top:12px;
+  font-size:13px;
+  line-height:1.75;
+  color:#334155;
+  word-break:break-word;
+}
+.report-note{
+  margin-top:10px;
+  font-size:12px;
+  line-height:1.7;
+  color:#92400e;
+}
+.report-actions{
+  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.report-preview{
+  margin-top:12px;
+  font-size:13px;
+  line-height:1.75;
+  color:#334155;
+  word-break:break-word;
+}
+.report-pager{
+  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.available-model-shell{
+  margin-top:16px;
+  padding:14px;
+  border-radius:18px;
+  background:rgba(255,255,255,.6);
+  border:1px solid rgba(220,205,184,.88);
+}
+.available-model-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.available-model-title{
+  font-size:14px;
+  font-weight:700;
+  color:#1f2937;
+}
+.available-model-meta{
+  margin-top:4px;
+  font-size:12px;
+  line-height:1.6;
+  color:#6b7280;
+}
+.available-model-list{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:8px;
+}
+.available-model-item{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:#fffaf2;
+  border:1px solid rgba(220,205,184,.92);
+}
+.available-model-name{
+  min-width:0;
+  font-size:11px;
+  line-height:1.45;
+  color:#1f2937;
+  word-break:break-word;
+}
+.mini-copy-btn{
+  flex-shrink:0;
+  border-radius:999px;
+  border:1px solid rgba(180,83,9,.18);
+  background:rgba(255,255,255,.88);
+  color:#92400e;
+  padding:4px 8px;
+  font-size:10px;
+  font-weight:700;
+}
+.mini-copy-btn:hover{
+  background:#fff;
+  border-color:rgba(180,83,9,.32);
+}
+.report-detail-section{
+  margin-top:18px;
+}
+.report-detail-title{
+  margin-bottom:10px;
+  font-size:13px;
+  font-weight:700;
+  color:#1f2937;
+}
+.report-detail-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.report-detail-item{
+  padding:12px 14px;
+  border-radius:16px;
+  background:#fffaf2;
+  border:1px solid rgba(220,205,184,.92);
+}
+.report-detail-reason{
+  font-size:13px;
+  font-weight:700;
+  color:#1f2937;
+}
+.report-detail-meta{
+  margin-top:6px;
+  font-size:12px;
+  line-height:1.7;
+  color:#6b7280;
+}
+.report-detail-models{
+  margin-top:8px;
+  font-size:12px;
+  line-height:1.8;
+  color:#334155;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.main{flex:1;min-width:0;padding:26px 26px 34px}
+.topbar{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:4px 2px 24px;
+}
+.page-title{font-size:32px;font-weight:800;letter-spacing:-.03em;margin:0}
+.page-sub{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.7;max-width:760px}
+.topbar-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.refresh-btn,
+.ghost-btn,
+.danger-btn,
+.filter-chip,
+.select-like{
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.72);
+  color:var(--text);
+  padding:10px 16px;
+  transition:.18s ease;
+}
+.refresh-btn:hover,.ghost-btn:hover,.filter-chip:hover,.select-like:hover{border-color:var(--line-strong);background:#fff}
+.danger-btn{border-color:#efc2bf;color:var(--danger);background:var(--danger-soft)}
+.danger-btn:hover{border-color:#db8e88;background:#fff1f0}
+.last-refresh{font-size:12px;color:var(--muted)}
+.page{display:none}
+.page.active{display:block}
+.hero{
+  background:linear-gradient(135deg, rgba(198,90,17,.09), rgba(15,118,110,.08));
+  border:1px solid rgba(198,90,17,.12);
+  border-radius:28px;
+  padding:24px 26px;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+  box-shadow:var(--shadow);
+}
+.hero h2{margin:0;font-size:22px;letter-spacing:-.03em}
+.hero p{margin:12px 0 0;color:#4b5563;line-height:1.8;font-size:14px}
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:16px;
+  margin-top:18px;
+}
+.kpi-card,
+.panel{
+  background:rgba(255,250,242,.82);
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(220,205,184,.9);
+  border-radius:24px;
+  box-shadow:var(--shadow);
+}
+.kpi-card{padding:20px 22px;position:relative;overflow:hidden}
+.kpi-card::after{
+  content:"";
+  position:absolute;
+  inset:auto -12% -42px auto;
+  width:120px;
+  height:120px;
+  border-radius:999px;
+  background:rgba(255,255,255,.35);
+}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:var(--muted)}
+.kpi-value{margin-top:14px;font-size:34px;font-weight:800;letter-spacing:-.04em}
+.kpi-note{margin-top:8px;font-size:13px;color:#4b5563;line-height:1.6}
+.kpi-note-line{display:block}
+.kpi-card.accent .kpi-value{color:var(--accent)}
+.kpi-card.teal .kpi-value{color:var(--teal)}
+.kpi-card.warn .kpi-value{color:var(--warn)}
+.kpi-card.ok .kpi-value{color:var(--ok)}
+.section-grid{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+  margin-top:18px;
+}
+.panel{padding:22px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.panel-title{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.panel-sub{font-size:13px;color:var(--muted);line-height:1.7}
+.empty{
+  padding:24px;
+  border-radius:18px;
+  background:rgba(255,255,255,.55);
+  border:1px dashed var(--line);
+  color:var(--muted);
+  text-align:center;
+}
+.issue-list,.signal-list{display:flex;flex-direction:column;gap:12px}
+.issue-item,
+.signal-item{
+  padding:14px 16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(220,205,184,.8);
+}
+.issue-top,
+.signal-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.issue-title,
+.signal-title{font-weight:700;font-size:14px;word-break:break-all}
+.issue-meta,
+.signal-meta{font-size:12px;color:var(--muted);line-height:1.7}
+.issue-reason{font-size:13px;color:#374151;line-height:1.7;word-break:break-word}
+.stat-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+.badge::before{content:"";width:8px;height:8px;border-radius:999px}
+.badge.success{background:var(--ok-soft);color:var(--ok)}
+.badge.success::before{background:var(--ok)}
+.badge.failover{background:var(--warn-soft);color:var(--warn)}
+.badge.failover::before{background:var(--warn)}
+.badge.error{background:var(--danger-soft);color:var(--danger)}
+.badge.error::before{background:var(--danger)}
+.badge.pending{background:var(--accent-soft);color:var(--accent)}
+.badge.pending::before{background:var(--accent)}
+.badge.up{background:var(--ok-soft);color:var(--ok)}
+.badge.up::before{background:var(--ok)}
+.badge.down{background:var(--danger-soft);color:var(--danger)}
+.badge.down::before{background:var(--danger)}
+.badge.dynamic{background:var(--teal-soft);color:var(--teal)}
+.badge.dynamic::before{background:var(--teal)}
+.table-shell{
+  background:rgba(255,255,255,.62);
+  border:1px solid rgba(220,205,184,.8);
+  border-radius:22px;
+  overflow:hidden;
+}
+.table-toolbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:16px 18px;
+  border-bottom:1px solid rgba(220,205,184,.9);
+  background:rgba(255,255,255,.56);
+}
+.pager{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.pager-info{
+  font-size:12px;
+  color:var(--muted);
+}
+.pager-bar{
+  justify-content:space-between;
+  border-top:1px solid rgba(220,205,184,.9);
+  border-bottom:none;
+}
+.search-input,
+.filter-select{
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#fff;
+  padding:11px 16px;
+  min-height:42px;
+  color:var(--text);
+}
+.search-input{min-width:260px;flex:1}
+.filter-select{min-width:150px}
+.count-label{font-size:13px;color:var(--muted);margin-left:auto}
+.table-wrap{overflow:auto;max-height:68vh}
+table{width:100%;border-collapse:collapse;min-width:960px}
+th,td{padding:14px 16px;text-align:left;border-bottom:1px solid rgba(220,205,184,.72);vertical-align:top}
+th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:#f8f1e6;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:#7b7280;
+}
+tr:hover td{background:rgba(255,255,255,.64)}
+.clickable{cursor:pointer}
+.mono{font-family:var(--mono);font-size:12px;color:#455468;word-break:break-all}
+.small{font-size:12px;color:var(--muted)}
+.toolbar-spacer{flex:1}
+.segmented{display:flex;gap:8px;flex-wrap:wrap}
+.filter-chip.active{background:#fff;color:var(--accent);border-color:#e1b891;box-shadow:inset 0 0 0 1px rgba(198,90,17,.08)}
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+.summary-card{
+  padding:18px 20px;
+  border-radius:20px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(220,205,184,.8);
+}
+.summary-label{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+.summary-value{font-size:28px;font-weight:800;margin-top:12px;letter-spacing:-.04em}
+.summary-note{font-size:13px;color:#4b5563;margin-top:6px}
+.provider-chart-grid{
+  display:grid;
+  grid-template-columns:1.08fr .92fr;
+  gap:18px;
+  margin-top:6px;
+}
+.chart-block{
+  padding:18px 20px;
+  border-radius:22px;
+  background:rgba(255,255,255,.62);
+  border:1px solid rgba(220,205,184,.8);
+}
+.chart-title{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.chart-sub{font-size:12px;color:var(--muted);line-height:1.7;margin-top:6px}
+.stack-group + .stack-group{margin-top:18px}
+.stack-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.stack-label{font-size:13px;font-weight:600}
+.stack-stat{font-size:12px;color:var(--muted)}
+.stack-bar{
+  height:12px;
+  border-radius:999px;
+  overflow:hidden;
+  display:flex;
+  background:rgba(220,205,184,.45);
+}
+.stack-segment.up{background:linear-gradient(90deg, #166534, #3f8c54)}
+.stack-segment.down{background:linear-gradient(90deg, #b42318, #da5d4a)}
+.stack-segment.traffic{background:linear-gradient(90deg, #0f766e, #27a39a)}
+.stack-segment.idle{background:linear-gradient(90deg, #b7791f, #e0aa51)}
+.legend-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:16px;
+}
+.legend-item{
+  padding:12px 14px;
+  border-radius:16px;
+  background:rgba(255,255,255,.78);
+  border:1px solid rgba(220,205,184,.72);
+}
+.legend-top{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+.legend-dot{
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  flex-shrink:0;
+}
+.legend-dot.up{background:var(--ok)}
+.legend-dot.down{background:var(--danger)}
+.legend-dot.traffic{background:var(--teal)}
+.legend-dot.idle{background:var(--warn)}
+.legend-value{margin-top:8px;font-size:24px;font-weight:800;letter-spacing:-.04em}
+.legend-note{margin-top:4px;font-size:12px;color:#4b5563}
+.provider-bars{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:14px;
+}
+.compact-chart{
+  padding:16px 16px;
+}
+.compact-chart .provider-bars{
+  gap:8px;
+  margin-top:12px;
+}
+.provider-row{
+  padding:13px 14px;
+  border-radius:18px;
+  background:rgba(255,255,255,.78);
+  border:1px solid rgba(220,205,184,.72);
+}
+.compact-chart .provider-row{
+  padding:10px 12px;
+  border-radius:16px;
+}
+.provider-row-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.compact-chart .provider-row-top{
+  margin-bottom:8px;
+}
+.provider-row-title{font-weight:700;font-size:13px;word-break:break-all}
+.provider-row-meta{font-size:12px;color:var(--muted);line-height:1.7;margin-top:8px}
+.compact-chart .provider-row-meta{
+  font-size:11px;
+  line-height:1.55;
+  margin-top:6px;
+}
+.traffic-chart-shell{
+  position:relative;
+  margin-top:14px;
+  overflow:hidden;
+}
+.traffic-chart-svg{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.traffic-grid-line{
+  stroke:rgba(220,205,184,.85);
+  stroke-width:1;
+  stroke-dasharray:4 4;
+}
+.traffic-axis-line{
+  stroke:rgba(133,109,75,.65);
+  stroke-width:1.2;
+}
+.traffic-axis-label{
+  fill:#7b7280;
+  font-size:11px;
+  font-family:"Avenir Next","PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+}
+.traffic-area{
+  fill:url(#trafficAreaGradient);
+}
+.traffic-line{
+  fill:none;
+  stroke:#c65a11;
+  stroke-width:2.2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.traffic-overlay{
+  fill:transparent;
+  cursor:crosshair;
+}
+.traffic-focus-line{
+  stroke:rgba(180,83,9,.5);
+  stroke-width:1.2;
+  stroke-dasharray:5 4;
+}
+.traffic-focus-point{
+  fill:#c65a11;
+  stroke:rgba(255,255,255,.94);
+  stroke-width:2;
+}
+.traffic-point{
+  transition:.16s ease;
+}
+.traffic-hit{
+  cursor:pointer;
+}
+.chart-tooltip{
+  position:absolute;
+  min-width:220px;
+  max-width:280px;
+  padding:12px 14px;
+  border-radius:16px;
+  border:1px solid rgba(220,205,184,.92);
+  background:rgba(255,250,242,.98);
+  box-shadow:0 18px 34px rgba(31,41,51,.12);
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(6px);
+  transition:.16s ease;
+  z-index:5;
+}
+.chart-tooltip.open{
+  opacity:1;
+  transform:translateY(0);
+}
+.chart-tooltip-title{
+  font-family:var(--mono);
+  font-size:12px;
+  color:#334155;
+  line-height:1.6;
+  word-break:break-all;
+}
+.chart-tooltip-meta{
+  margin-top:8px;
+  font-size:12px;
+  color:#4b5563;
+  line-height:1.7;
+}
+.mini-bar{
+  height:10px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(220,205,184,.45);
+}
+.compact-chart .mini-bar{
+  height:8px;
+}
+.mini-fill{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, rgba(198,90,17,.92), rgba(15,118,110,.82));
+}
+.model-metric-chart-wrap{
+  margin-top:14px;
+  max-width:980px;
+}
+.model-metric-chart-shell{
+  position:relative;
+  margin-top:14px;
+}
+.model-metric-chart-svg{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.model-metric-grid-line{
+  stroke:rgba(220,205,184,.82);
+  stroke-width:1;
+  stroke-dasharray:4 4;
+}
+.model-metric-axis-line{
+  stroke:rgba(133,109,75,.68);
+  stroke-width:1.2;
+}
+.model-metric-axis-label{
+  fill:#7b7280;
+  font-size:11px;
+  font-family:"Avenir Next","PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+}
+.model-metric-rank-label{
+  fill:#8b6f47;
+  font-size:10px;
+  font-family:var(--mono);
+}
+.model-metric-hit{
+  fill:transparent;
+  cursor:pointer;
+}
+.model-metric-segment.success{
+  fill:#15803d;
+}
+.model-metric-segment.failover{
+  fill:#d97706;
+}
+.model-metric-segment.error{
+  fill:#dc2626;
+}
+.model-metric-focus{
+  fill:none;
+  stroke:rgba(198,90,17,.72);
+  stroke-width:1.4;
+  rx:10;
+}
+.model-metric-legend{
+  margin-top:14px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.model-metric-legend-item{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(220,205,184,.88);
+  font-size:11px;
+  color:#475569;
+}
+.model-metric-legend-swatch{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  flex-shrink:0;
+}
+.model-metric-legend-swatch.success{background:#15803d}
+.model-metric-legend-swatch.failover{background:#d97706}
+.model-metric-legend-swatch.error{background:#dc2626}
+.model-metric-legend-swatch.total{
+  background:linear-gradient(135deg,#c65a11,#0f766e);
+}
+.modal-mask{
+  position:fixed;
+  inset:0;
+  background:rgba(17,24,39,.46);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  z-index:1000;
+}
+.modal-mask.open{display:flex}
+.modal{
+  width:min(900px,100%);
+  max-height:88vh;
+  overflow:hidden;
+  background:var(--panel-strong);
+  border-radius:26px;
+  border:1px solid rgba(220,205,184,.9);
+  box-shadow:0 40px 90px rgba(17,24,39,.22);
+}
+.modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:20px 22px;
+  border-bottom:1px solid rgba(220,205,184,.9);
+}
+.modal-title{font-size:18px;font-weight:800;letter-spacing:-.03em}
+.modal-close{
+  border:none;
+  background:rgba(220,205,184,.36);
+  width:40px;
+  height:40px;
+  border-radius:999px;
+  color:var(--text);
+}
+.modal-body{padding:22px;overflow:auto;max-height:calc(88vh - 82px)}
+.detail-grid{display:grid;grid-template-columns:140px 1fr;gap:10px 14px}
+.detail-key{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);padding-top:4px}
+.detail-value{font-size:14px;line-height:1.7;word-break:break-word}
+.code-block{
+  margin-top:8px;
+  padding:16px 18px;
+  border-radius:18px;
+  background:#f7f1e8;
+  border:1px solid rgba(220,205,184,.9);
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.toast{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  z-index:1100;
+  padding:13px 18px;
+  border-radius:16px;
+  border:1px solid rgba(220,205,184,.9);
+  background:#fffaf2;
+  color:var(--text);
+  box-shadow:var(--shadow);
+  opacity:0;
+  transform:translateY(20px);
+  pointer-events:none;
+  transition:.2s ease;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-left:4px solid var(--ok)}
+.toast.err{border-left:4px solid var(--danger)}
+@media (max-width:1180px){
+  .hero,.section-grid,.provider-chart-grid,.chat-page-grid,.catalog-group-list{grid-template-columns:1fr}
+  .kpi-grid,.summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .catalog-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:920px){
+  .shell{display:block}
+  .sidebar{position:static;width:auto;height:auto;border-bottom:1px solid rgba(255,255,255,.06)}
+  .main{padding:20px 16px 26px}
+  .topbar{flex-direction:column;align-items:stretch}
+  .topbar-tools{justify-content:flex-start}
+  .page-title{font-size:28px}
+  .count-label{margin-left:0}
+}
+@media (max-width:640px){
+  .kpi-grid,.summary-grid{grid-template-columns:1fr}
+  .catalog-summary-grid{grid-template-columns:1fr}
+  .search-input,.filter-select{width:100%;min-width:0}
+  .detail-grid{grid-template-columns:1fr}
+  .detail-key{padding-top:0}
+  .hero,.panel,.kpi-card,.summary-card{border-radius:20px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">⛓</div>
+      <div class="brand-title">Chain-AI Gateway</div>
+      <div class="brand-sub">前端已收口为轻量控制台，只保留运行态、日志和历史模型表现。</div>
+    </div>
+
+    <div class="nav-block">
+      <div class="nav-label">Console</div>
+      <button class="nav-item active" data-page="overview" onclick="nav('overview', this)">
+        <span class="nav-icon">◌</span>
+        <span>概览</span>
+      </button>
+      <button class="nav-item" data-page="logs" onclick="nav('logs', this)">
+        <span class="nav-icon">≣</span>
+        <span>请求日志</span>
+      </button>
+      <button class="nav-item" data-page="upstreams" onclick="nav('upstreams', this)">
+        <span class="nav-icon">⇄</span>
+        <span>上游状态</span>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-note">默认路由：下游直接决定模型</div>
+      <div class="sidebar-footer-note">异常策略：仅 `429` 在 key 之间转移</div>
+      <div class="sidebar-footer-note">模型不存在：直接切 `openrouter/free`</div>
+      <div class="sidebar-footer-note">`Chat` 页只展示最近一次全量测试确认可用的模型。</div>
+    </div>
+
+    <div class="nav-block nav-block-chat">
+      <div class="nav-label">Tools</div>
+      <button class="nav-item" data-page="chat" onclick="nav('chat', this)">
+        <span class="nav-icon">✦</span>
+        <span>Chat</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title" id="page-title">概览</h1>
+        <div class="page-sub" id="page-sub">运行概况、Provider 状态和模型表现。</div>
+      </div>
+      <div class="topbar-tools">
+        <button class="refresh-btn" onclick="refreshCurrent()">刷新当前页</button>
+        <div class="last-refresh" id="last-refresh">尚未刷新</div>
+      </div>
+    </header>
+
+    <section class="page active" id="page-overview">
+      <div class="hero">
+        <div><h2>运行概况</h2></div>
+      </div>
+
+      <div class="kpi-grid" id="overview-kpis"></div>
+
+      <section class="panel" style="margin-top:18px">
+        <div class="panel-head">
+          <div><div class="panel-title">Provider 实时状态</div></div>
+        </div>
+        <div class="provider-chart-grid">
+          <div class="chart-block" id="overview-provider-health"></div>
+          <div class="chart-block compact-chart" id="overview-provider-traffic"></div>
+        </div>
+      </section>
+
+      <div class="section-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">最近异常</div></div>
+          </div>
+          <div id="overview-issues"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">今日模型热度</div></div>
+          </div>
+          <div id="overview-models"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="page" id="page-chat">
+      <div class="chat-page-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Chat Playground</div>
+              <div class="panel-sub">这里直接模拟下游请求。模型列表来自最近一次全量测试确认可用的模型，Prompt 可改，点按钮就会打到网关自身的 `/v1/chat/completions`。</div>
+            </div>
+          </div>
+          <div class="chat-stage">
+            <div class="sidebar-demo">
+              <div class="sidebar-demo-title">下游使用示例</div>
+              <div class="sidebar-demo-sub">模型列表来自最近一次全量测试确认可用的模型。</div>
+              <div class="sidebar-demo-url mono">http://pm.tsss.com.cn:18088/v1</div>
+
+              <div class="sidebar-field">
+                <label class="sidebar-field-label" for="sidebar-model-select">模型</label>
+                <select class="sidebar-select" id="sidebar-model-select" onchange="updateSidebarUsageExample()">
+                  <option value="">加载中...</option>
+                </select>
+              </div>
+
+              <div class="sidebar-field">
+                <label class="sidebar-field-label" for="sidebar-prompt">Prompt</label>
+                <textarea class="sidebar-textarea" id="sidebar-prompt" oninput="updateSidebarUsageExample()" placeholder="写点要测试的内容">请用两句话介绍这个网关的用途，并回复 gateway ok。</textarea>
+                <div class="sidebar-preset-row">
+                  <button class="sidebar-chip" onclick="setSidebarPrompt('请用两句话介绍这个网关的用途，并回复 gateway ok。')">默认</button>
+                  <button class="sidebar-chip" onclick="setSidebarPrompt('请用一句话回复：模型测试正常。')">短答</button>
+                  <button class="sidebar-chip" onclick="setSidebarPrompt('请列出 3 条使用这个网关时的注意事项。')">列表</button>
+                  <button class="sidebar-chip" id="sidebar-generate-prompt-btn" onclick="generateSidebarPrompt()">自动生成提示词</button>
+                </div>
+              </div>
+
+              <div class="sidebar-test-row">
+                <label class="sidebar-check">
+                  <input type="checkbox" id="sidebar-stream-toggle">
+                  <span>流式回复</span>
+                </label>
+                <button class="sidebar-test-btn" id="sidebar-test-btn" onclick="runSidebarModelTest()">测试当前模型</button>
+              </div>
+
+              <div class="sidebar-result empty" id="sidebar-test-result">选择模型后可以直接发一个非流式测试请求，结果会显示在这里。</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">使用说明</div>
+              <div class="panel-sub">这里不做额外代理逻辑，主要是帮助你快速验证“下游怎么接、当前哪些模型值得先试”。</div>
+            </div>
+          </div>
+          <div class="chat-hint-list">
+            <div class="chat-hint-item">
+              <div class="chat-hint-title">入口</div>
+              <div class="chat-hint-body mono">http://pm.tsss.com.cn:18088/v1</div>
+            </div>
+            <div class="chat-hint-item">
+              <div class="chat-hint-title">模型来源</div>
+              <div class="chat-hint-body">只展示最近一次全量测试确认可用的模型，避免把历史上偶尔成功过、但当前已经不可用的模型继续放给下游试。</div>
+            </div>
+            <div class="chat-hint-item">
+              <div class="chat-hint-title">测试方式</div>
+              <div class="chat-hint-body">按钮发的是非流式 `/v1/chat/completions`，结果区会格式化显示延迟、prompt / completion tokens、finish reason 和正文。</div>
+            </div>
+            <div class="chat-hint-item">
+              <div class="chat-hint-title">路由策略</div>
+              <div class="chat-hint-body">下游传什么模型，上游就按什么模型请求；只有 `429` 才会在不同 key 之间转移；模型不存在时直接切 `openrouter/free`。</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="page" id="page-logs">
+      <div class="table-shell">
+        <div class="table-toolbar">
+          <input class="search-input" id="log-search" placeholder="搜索 provider / requested model / reason" oninput="resetLogPage()">
+          <select class="filter-select" id="log-status" onchange="resetLogPage()">
+            <option value="">全部状态</option>
+            <option value="success">success</option>
+            <option value="error">error</option>
+            <option value="aborted">aborted</option>
+            <option value="pending">pending</option>
+          </select>
+          <label class="small" for="log-limit">每页</label>
+          <select class="filter-select" id="log-limit" onchange="setLogLimit(this.value)">
+            <option value="20">20</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+          <div class="count-label" id="log-count">0 条请求</div>
+          <button class="danger-btn" onclick="clearLogs()">清空日志</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>请求模型</th>
+                <th>Provider</th>
+                <th>真实模型</th>
+                <th>状态</th>
+                <th>尝试</th>
+                <th>流式</th>
+                <th>延迟</th>
+                <th>Tokens</th>
+                <th>原因</th>
+              </tr>
+            </thead>
+            <tbody id="log-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-toolbar pager-bar">
+          <div class="pager-info" id="log-page-info">第 1 / 1 页</div>
+          <div class="pager" id="log-pager"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-upstreams">
+      <div class="stat-toolbar">
+        <div class="segmented">
+          <button class="filter-chip active" data-days="1" onclick="setStatusDays(1)">1 天</button>
+          <button class="filter-chip" data-days="7" onclick="setStatusDays(7)">7 天</button>
+          <button class="filter-chip" data-days="30" onclick="setStatusDays(30)">30 天</button>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <label class="small" for="model-limit">模型榜单</label>
+        <select class="filter-select" id="model-limit" onchange="setModelLimit(this.value)">
+          <option value="30">前 30</option>
+          <option value="50" selected>前 50</option>
+          <option value="100">前 100</option>
+        </select>
+        <button class="ghost-btn" onclick="loadStatus()">刷新状态</button>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">模型指标评估</div>
+            <div class="panel-sub">基于请求日志历史统计，不做主动探测。`success / failover / error` 都来自真实请求记录。下面统一压缩到一张图里，柱高表示请求量，柱内分段表示 success / failover / error。</div>
+          </div>
+        </div>
+        <div id="model-metrics-chart"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">上游模型目录</div>
+            <div class="panel-sub">直接来自真实上游 `/models`，不混入虚拟模型。支持手动刷新、后台全量测试和每日 03:00 自动测试。</div>
+          </div>
+        </div>
+        <div class="catalog-summary-grid" id="upstream-model-summary">
+          <div class="catalog-stat">
+            <div class="catalog-stat-label">总模型数</div>
+            <div class="catalog-stat-value">—</div>
+            <div class="catalog-stat-note">等待拉取上游模型目录</div>
+          </div>
+        </div>
+        <div class="catalog-toolbar">
+          <input class="search-input catalog-search" id="upstream-model-search" placeholder="搜索模型名 / 家族" oninput="renderUpstreamModelCatalog()">
+          <button class="ghost-btn" id="upstream-model-refresh-btn" onclick="loadUpstreamModelCatalog(true)">刷新上游模型</button>
+          <button class="ghost-btn" id="upstream-model-test-btn" onclick="startAllUpstreamModelTests()">全部模型测试</button>
+        </div>
+        <div class="catalog-progress-shell empty" id="upstream-model-test-progress">尚未执行全量模型测试。手动点击“全部模型测试”后会在后台逐个通过下游链路测试，超时 180 秒，每天 03:00 也会自动执行一次。</div>
+        <div id="upstream-available-models"></div>
+        <div id="upstream-model-test-reports"></div>
+        <div id="upstream-model-catalog" style="margin-top:16px"></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<div class="modal-mask" id="modal-mask" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">请求详情</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const pageMeta = {
+  chat: {
+    title: 'Chat',
+    sub: '下游接入示例、Prompt 测试和响应预览。',
+  },
+  overview: {
+    title: '概览',
+    sub: '运行概况、Provider 状态和模型表现。',
+  },
+  logs: {
+    title: '请求日志',
+    sub: '列表按一次下游请求聚合展示，点击后再看完整尝试链和上下游原文。',
+  },
+  upstreams: {
+    title: '上游状态',
+    sub: '这里保留模型指标评估和上游模型目录，并支持从下游触发后台全量模型测试。',
+  },
+};
+
+const state = {
+  page: 'overview',
+  logs: [],
+  logPage: 1,
+  logLimit: 50,
+  logTotal: 0,
+  logPages: 1,
+  timers: {},
+  overviewProviderDays: 7,
+  statusDays: 7,
+  modelLimit: 50,
+  usageModels: [],
+  usageSelectedModel: '',
+  usageTesting: false,
+  usageGeneratingPrompt: false,
+  upstreamModels: [],
+  upstreamModelsFetchedAt: 0,
+  upstreamModelsRefreshing: false,
+  upstreamModelTest: {
+    run_id: '',
+    running: false,
+    total: 0,
+    done: 0,
+    success: 0,
+    error: 0,
+    pending: 0,
+    running_count: 0,
+    progress_pct: 0,
+    results: {},
+    started_at: 0,
+    finished_at: 0,
+    next_run_at: 0,
+    trigger: '',
+    report_status: '',
+    report_summary: '',
+    report_source: '',
+    report_model: '',
+    report_error: '',
+    report_overview: {},
+  },
+  upstreamModelTestReports: [],
+  upstreamModelTestReportPage: 1,
+  upstreamModelTestReportPages: 1,
+  upstreamModelTestReportTotal: 0,
+  latestUpstreamModelTestReport: null,
+};
+
+const promptMagicSeeds = [
+  '给出结论后再列出 3 条依据',
+  '要求输出严格的 JSON 或 Markdown 表格',
+  '限制字数但保留信息密度',
+  '让模型做角色切换和风格改写',
+  '比较两个方案并给出取舍理由',
+  '从混乱描述里提取结构化信息',
+  '模拟真实工作场景里的请求邮件或汇报',
+  '先分析问题，再输出执行步骤',
+  '要求回答里包含风险和边界条件',
+  '把复杂内容改写成面向非技术用户的版本',
+];
+
+function fmtNum(num) {
+  const n = Number(num || 0);
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'G';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+function fmtPct(num) {
+  return `${Number(num || 0).toFixed(1)}%`;
+}
+
+function titleCaseWord(value) {
+  return String(value || '')
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function fmtAgo(ts) {
+  if (!ts) return '—';
+  const delta = Math.max(0, Math.floor(Date.now() / 1000 - Number(ts)));
+  if (delta < 60) return `${delta}s 前`;
+  if (delta < 3600) return `${Math.floor(delta / 60)}m 前`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h 前`;
+  return `${Math.floor(delta / 86400)}d 前`;
+}
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  return new Date(Number(ts) * 1000).toLocaleString('zh-CN', { hour12: false });
+}
+
+function fmtLatency(ms) {
+  const n = Number(ms || 0);
+  if (!n) return '—';
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}s` : `${n}ms`;
+}
+
+function escHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function chunkArray(items, size = 6) {
+  const list = Array.isArray(items) ? items : [];
+  const chunks = [];
+  const step = Math.max(1, Number(size) || 6);
+  for (let index = 0; index < list.length; index += step) {
+    chunks.push(list.slice(index, index + step));
+  }
+  return chunks;
+}
+
+function getBulkTestReportSummaryPreview(summary, maxLines = 4) {
+  const text = String(summary || '').trim();
+  if (!text) return '暂无摘要。';
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const preview = lines.slice(0, Math.max(1, Number(maxLines) || 4)).join('\n');
+  return lines.length > maxLines ? `${preview}\n...` : preview;
+}
+
+async function copyText(value, successText = '已复制') {
+  const text = String(value || '').trim();
+  if (!text) {
+    toast('没有可复制的内容', false);
+    return;
+  }
+  try {
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      toast(successText);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    if (!copied) throw new Error('浏览器拒绝复制');
+    toast(successText);
+  } catch (error) {
+    toast(`复制失败: ${error.message}`, false);
+  }
+}
+
+function sidebarPromptValue() {
+  return (document.getElementById('sidebar-prompt')?.value || '').trim() || '请用一句话回复：gateway ok。';
+}
+
+function randomPromptMagicSeed() {
+  return promptMagicSeeds[Math.floor(Math.random() * promptMagicSeeds.length)];
+}
+
+function normalizeGeneratedPrompt(text) {
+  let value = String(text || '').trim();
+  value = value.replace(/^```(?:text|markdown|md|json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  value = value.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
+  return value;
+}
+
+function isWeakGeneratedPrompt(text) {
+  const value = normalizeGeneratedPrompt(text);
+  if (!value) return true;
+  const weakPatterns = [
+    /本提示/i,
+    /提示词/i,
+    /根据该材料/i,
+    /根据以下/i,
+    /根据下列/i,
+    /给定情境/i,
+    /给定材料/i,
+    /参考上文/i,
+    /见下文/i,
+    /根据上述/i,
+    /模型需/i,
+    /请按要求控制输出长度/i,
+    /依据：/i,
+  ];
+  return weakPatterns.some(pattern => pattern.test(value));
+}
+
+function renderSidebarUsageModels(models) {
+  const select = document.getElementById('sidebar-model-select');
+  const button = document.getElementById('sidebar-test-btn');
+  if (!select || !button) return;
+  const filtered = [...new Set((Array.isArray(models) ? models : []).map(item => String(item || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  state.usageModels = filtered;
+  if (!filtered.length) {
+    state.usageSelectedModel = '';
+    select.innerHTML = '<option value="">暂无最近测试可用模型</option>';
+    button.disabled = true;
+    updateSidebarUsageExample();
+    return;
+  }
+  if (!filtered.includes(state.usageSelectedModel)) {
+    state.usageSelectedModel = filtered[0];
+  }
+  select.innerHTML = filtered.map(model => `
+    <option value="${escHtml(model)}" ${model === state.usageSelectedModel ? 'selected' : ''}>
+      ${escHtml(model)}
+    </option>
+  `).join('');
+  select.value = state.usageSelectedModel;
+  button.disabled = false;
+  updateSidebarUsageExample();
+}
+
+async function loadSidebarUsageModels(silent = false) {
+  try {
+    const res = await fetchJson('/admin/api/upstream-models/test-reports?limit=1&page=1');
+    const latest = Array.isArray(res.items) ? (res.items[0] || null) : null;
+    if (latest) state.latestUpstreamModelTestReport = latest;
+    const availableModels = Array.isArray(latest?.stats?.available_models) ? latest.stats.available_models : [];
+    renderSidebarUsageModels(availableModels);
+    if (state.page === 'chat') setLastRefresh();
+  } catch (error) {
+    renderSidebarUsageModels([]);
+    if (!silent) toast(`示例模型加载失败: ${error.message}`, false);
+  }
+}
+
+function updateSidebarUsageExample() {
+  const select = document.getElementById('sidebar-model-select');
+  const result = document.getElementById('sidebar-test-result');
+  const button = document.getElementById('sidebar-test-btn');
+  const generateBtn = document.getElementById('sidebar-generate-prompt-btn');
+  if (!select || !result || !button || !generateBtn) return;
+  state.usageSelectedModel = select.value || state.usageSelectedModel || '';
+  if (!state.usageModels.length) {
+    result.className = 'sidebar-result empty';
+    result.textContent = '当前还没有最近一次全量测试确认可用的模型，先去“上游状态”页跑一次全部模型测试。';
+    button.disabled = true;
+    generateBtn.disabled = state.usageGeneratingPrompt;
+    return;
+  }
+  button.disabled = state.usageTesting;
+  generateBtn.disabled = state.usageGeneratingPrompt;
+}
+
+function setSidebarPrompt(prompt) {
+  const textarea = document.getElementById('sidebar-prompt');
+  if (!textarea) return;
+  textarea.value = prompt;
+  updateSidebarUsageExample();
+}
+
+function extractSidebarTestText(payload) {
+  const choice = payload?.choices?.[0] || {};
+  const message = choice.message || {};
+  if (typeof message.content === 'string' && message.content.trim()) return message.content.trim();
+  if (Array.isArray(message.content) && message.content.length) {
+    return message.content.map(part => {
+      if (typeof part === 'string') return part;
+      if (typeof part?.text === 'string') return part.text;
+      return JSON.stringify(part, null, 2);
+    }).join('\n');
+  }
+  if (Array.isArray(message.tool_calls) && message.tool_calls.length) {
+    return JSON.stringify({ tool_calls: message.tool_calls }, null, 2);
+  }
+  if (typeof choice.text === 'string' && choice.text.trim()) return choice.text.trim();
+  return JSON.stringify(payload, null, 2);
+}
+
+function sidebarStreamEnabled() {
+  return Boolean(document.getElementById('sidebar-stream-toggle')?.checked);
+}
+
+function appendStreamToolCall(toolCalls, deltaCalls) {
+  (deltaCalls || []).forEach(delta => {
+    const index = Number(delta?.index ?? 0);
+    if (!toolCalls[index]) {
+      toolCalls[index] = {
+        id: delta?.id || '',
+        name: delta?.function?.name || '',
+        arguments: delta?.function?.arguments || '',
+      };
+      return;
+    }
+    if (delta?.id) toolCalls[index].id = delta.id;
+    if (delta?.function?.name) toolCalls[index].name += delta.function.name;
+    if (delta?.function?.arguments) toolCalls[index].arguments += delta.function.arguments;
+  });
+}
+
+function formatStreamToolCalls(toolCalls) {
+  const activeCalls = toolCalls.filter(Boolean);
+  if (!activeCalls.length) return '';
+  return activeCalls.map((call, idx) => {
+    const name = call.name || `tool_${idx + 1}`;
+    const args = (call.arguments || '').trim() || '{}';
+    return `[tool_call ${name}]\n${args}`;
+  }).join('\n\n');
+}
+
+async function runSidebarModelTestStream({ model, prompt, result }) {
+  const response = await fetch('/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      stream: true,
+    }),
+  });
+  let errorPayload = null;
+  if (!response.ok) {
+    try {
+      errorPayload = await response.json();
+    } catch (error) {
+      errorPayload = null;
+    }
+    const detail = errorPayload && (errorPayload.detail || errorPayload.error)
+      ? (errorPayload.detail || errorPayload.error)
+      : `${response.status} ${response.statusText}`;
+    throw new Error(detail);
+  }
+  if (!response.body) throw new Error('浏览器不支持流式读取');
+
+  result.innerHTML = `
+    <div class="sidebar-result-head"><span>测试结果</span><span>${escHtml(model)} · stream</span></div>
+    <div class="sidebar-result-meta" id="sidebar-stream-meta">流式连接已建立，等待返回...</div>
+    <div class="sidebar-result-body" id="sidebar-stream-body"></div>
+  `;
+  const metaEl = result.querySelector('#sidebar-stream-meta');
+  const bodyEl = result.querySelector('#sidebar-stream-body');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+  let reasoning = '';
+  const toolCalls = [];
+  let finishReason = '—';
+  let usage = {};
+  let chunkCount = 0;
+  const startedAt = performance.now();
+
+  const refreshBody = () => {
+    const parts = [];
+    if (text) parts.push(text);
+    if (!text && reasoning) parts.push(`[reasoning]\n${reasoning}`);
+    const toolText = formatStreamToolCalls(toolCalls);
+    if (!text && !reasoning && toolText) parts.push(toolText);
+    bodyEl.textContent = parts.join('\n\n') || '等待流式内容...';
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunkCount += 1;
+    buffer += decoder.decode(value, { stream: true });
+    const segments = buffer.split('\n');
+    buffer = segments.pop() || '';
+    for (const rawLine of segments) {
+      const line = rawLine.trim();
+      if (!line.startsWith('data:')) continue;
+      const payloadStr = line.slice(5).trim();
+      if (!payloadStr) continue;
+      if (payloadStr === '[DONE]') continue;
+      let data;
+      try {
+        data = JSON.parse(payloadStr);
+      } catch (error) {
+        continue;
+      }
+      if (data?.usage) usage = data.usage;
+      const choice = data?.choices?.[0] || {};
+      const delta = choice.delta || {};
+      if (typeof delta.content === 'string' && delta.content) text += delta.content;
+      if (typeof delta.reasoning === 'string' && delta.reasoning) reasoning += delta.reasoning;
+      if (Array.isArray(delta.tool_calls) && delta.tool_calls.length) appendStreamToolCall(toolCalls, delta.tool_calls);
+      if (choice.finish_reason) finishReason = choice.finish_reason;
+      refreshBody();
+      const latency = Math.round(performance.now() - startedAt);
+      metaEl.textContent = `流式返回中 · ${chunkCount} chunks · ${fmtLatency(latency)} · prompt ${fmtNum(usage.prompt_tokens || 0)} · completion ${fmtNum(usage.completion_tokens || 0)} · finish ${finishReason}`;
+    }
+  }
+
+  const finalLatency = Math.round(performance.now() - startedAt);
+  metaEl.textContent = `流式完成 · ${chunkCount} chunks · ${fmtLatency(finalLatency)} · prompt ${fmtNum(usage.prompt_tokens || 0)} · completion ${fmtNum(usage.completion_tokens || 0)} · finish ${finishReason}`;
+  refreshBody();
+  if (!text && !reasoning && !formatStreamToolCalls(toolCalls)) {
+    bodyEl.textContent = '模型返回为空。';
+  }
+}
+
+async function requestGeneratedPrompt(messages, temperature = 1.1) {
+  const payload = await fetchJson('/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'openrouter/free',
+      messages,
+      stream: false,
+      temperature,
+    }),
+  });
+  return normalizeGeneratedPrompt(extractSidebarTestText(payload));
+}
+
+async function generateSidebarPrompt() {
+  const textarea = document.getElementById('sidebar-prompt');
+  const button = document.getElementById('sidebar-generate-prompt-btn');
+  if (!textarea || !button) return;
+  state.usageGeneratingPrompt = true;
+  button.disabled = true;
+  button.textContent = '生成中...';
+  try {
+    let generated = await requestGeneratedPrompt([
+      {
+        role: 'system',
+        content: '你是一个提示词设计器。你的任务是为聊天模型生成一个高质量、可直接测试的中文用户提示词。只返回提示词正文，不要解释，不要加标题，不要加 Markdown 代码块，不要加引号。',
+      },
+      {
+        role: 'user',
+        content: `请随机生成一个适合聊天模型测试的中文提示词。要求：
+1. 提示词本身要完整、自包含、可直接发给模型。
+2. 如果任务涉及总结、提取、比较、改写、纠错或分析，必须在提示词里自带一小段材料、列表、对话、数据或场景，不要依赖外部上下文。
+3. 不要写“根据以下内容”“给定情境”“参考上文”“见下文”这类占位说法，除非你在提示词里把内容完整给出。
+4. 目标是测试模型的表达、结构化输出、推理、改写、总结、计划、比较或信息提取能力之一，但要随机，不要每次都一样。
+5. 不要包含违法、危险、成人、仇恨、隐私窃取等内容。
+6. 长度控制在 1 到 4 句。
+7. 尽量让任务具体，最好自带约束条件或输出格式要求。
+8. 这次优先融入这个灵感：${randomPromptMagicSeed()}。`,
+      },
+    ], 1.1);
+    if (isWeakGeneratedPrompt(generated)) {
+      generated = await requestGeneratedPrompt([
+        {
+          role: 'system',
+          content: '你是一个提示词修复器。你的任务是把一个半成品中文提示词改写成真正可以直接发给聊天模型测试的成品。只返回修复后的提示词正文，不要解释，不要加标题，不要加代码块。',
+        },
+        {
+          role: 'user',
+          content: `请把下面这个半成品改写成可直接使用的中文测试 prompt。
+要求：
+1. 必须自包含、可直接发送，不依赖外部上下文。
+2. 如果里面提到材料、对话、数据、场景，就在提示词正文里把这些内容补完整。
+3. 删除“本提示”“给定情境”“根据以下”“参考上文”“依据：本提示包含...”这类元话术。
+4. 保持 1 到 4 句，语气自然，任务具体。
+5. 保留它原本的大致测试方向，但要让成品更好用。
+
+半成品：
+${generated}`,
+        },
+      ], 0.7);
+    }
+    if (!generated) throw new Error('生成结果为空');
+    if (isWeakGeneratedPrompt(generated)) throw new Error('生成结果质量不足，请重试');
+    textarea.value = generated;
+    updateSidebarUsageExample();
+    toast('已生成新的提示词');
+  } catch (error) {
+    toast(`提示词生成失败: ${error.message}`, false);
+  } finally {
+    state.usageGeneratingPrompt = false;
+    button.disabled = false;
+    button.textContent = '自动生成提示词';
+    updateSidebarUsageExample();
+  }
+}
+
+async function runSidebarModelTest() {
+  const model = document.getElementById('sidebar-model-select')?.value || '';
+  const result = document.getElementById('sidebar-test-result');
+  const button = document.getElementById('sidebar-test-btn');
+  const streamToggle = document.getElementById('sidebar-stream-toggle');
+  if (!model || !result || !button) {
+    toast('先选择一个可用模型', false);
+    return;
+  }
+  const prompt = sidebarPromptValue();
+  const streamMode = sidebarStreamEnabled();
+  state.usageTesting = true;
+  button.disabled = true;
+  if (streamToggle) streamToggle.disabled = true;
+  button.textContent = '测试中...';
+  result.className = 'sidebar-result';
+  result.innerHTML = `<div class="sidebar-result-head"><span>测试结果</span><span>请求中</span></div><div class="sidebar-result-meta">正在调用 /v1/chat/completions ${streamMode ? '(stream)' : '(text)'} ...</div>`;
+  const t0 = performance.now();
+  try {
+    if (streamMode) {
+      await runSidebarModelTestStream({ model, prompt, result });
+    } else {
+      const payload = await fetchJson('/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          stream: false,
+        }),
+      });
+      const latency = performance.now() - t0;
+      const usage = payload?.usage || {};
+      const text = extractSidebarTestText(payload);
+      result.className = 'sidebar-result';
+      result.innerHTML = `
+        <div class="sidebar-result-head"><span>测试结果</span><span>${escHtml(model)}</span></div>
+        <div class="sidebar-result-meta">
+          延迟 ${fmtLatency(Math.round(latency))} · prompt ${fmtNum(usage.prompt_tokens || 0)} · completion ${fmtNum(usage.completion_tokens || 0)} · finish ${escHtml(payload?.choices?.[0]?.finish_reason || '—')}
+        </div>
+        <div class="sidebar-result-body">${escHtml(text || '模型返回为空。')}</div>
+      `;
+    }
+    toast('模型测试完成');
+  } catch (error) {
+    result.className = 'sidebar-result';
+    result.innerHTML = `
+      <div class="sidebar-result-head"><span>测试结果</span><span>error</span></div>
+      <div class="sidebar-result-meta">${escHtml(model)}</div>
+      <div class="sidebar-result-body">${escHtml(error.message || '请求失败')}</div>
+    `;
+    toast(`模型测试失败: ${error.message}`, false);
+  } finally {
+    state.usageTesting = false;
+    button.disabled = !state.usageModels.length;
+    if (streamToggle) streamToggle.disabled = false;
+    button.textContent = '测试当前模型';
+  }
+}
+
+function statusBadge(status) {
+  const map = {
+    success: 'success',
+    failover: 'failover',
+    error: 'error',
+    pending: 'pending',
+  };
+  const cls = map[status] || 'pending';
+  return `<span class="badge ${cls}">${escHtml(status || 'unknown')}</span>`;
+}
+
+function liveBadge(available) {
+  return available ? '<span class="badge up">available</span>' : '<span class="badge down">open</span>';
+}
+
+function dynamicBadge(dynamic) {
+  return dynamic ? '<span class="badge dynamic">dynamic</span>' : '<span class="badge pending">fixed</span>';
+}
+
+function toast(message, ok = true) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.className = `toast ${ok ? 'ok' : 'err'}`;
+  el.classList.add('show');
+  window.clearTimeout(el._timer);
+  el._timer = window.setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    payload = null;
+  }
+  if (!response.ok) {
+    const detail = payload && (payload.detail || payload.error) ? (payload.detail || payload.error) : `${response.status} ${response.statusText}`;
+    throw new Error(detail);
+  }
+  return payload;
+}
+
+function setLastRefresh() {
+  document.getElementById('last-refresh').textContent = `刷新于 ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`;
+}
+
+function clearTimers() {
+  Object.values(state.timers).forEach(timer => window.clearInterval(timer));
+  state.timers = {};
+}
+
+function nav(page, button) {
+  state.page = page;
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  if (button) button.classList.add('active');
+  const meta = pageMeta[page] || { title: page, sub: '' };
+  document.getElementById('page-title').textContent = meta.title;
+  document.getElementById('page-sub').textContent = meta.sub;
+  refreshCurrent();
+  clearTimers();
+  if (page === 'chat') state.timers[page] = window.setInterval(() => loadSidebarUsageModels(true), 30000);
+  if (page === 'overview') state.timers[page] = window.setInterval(loadOverview, 30000);
+  if (page === 'logs') state.timers[page] = window.setInterval(loadLogs, 8000);
+  if (page === 'upstreams') state.timers[page] = window.setInterval(loadStatus, 15000);
+}
+
+function refreshCurrent() {
+  if (state.page === 'chat') return loadSidebarUsageModels();
+  if (state.page === 'overview') return loadOverview();
+  if (state.page === 'logs') return loadLogs();
+  if (state.page === 'upstreams') return loadStatus(true);
+}
+
+async function loadOverview() {
+  const [overviewRes, providersRes] = await Promise.allSettled([
+    fetchJson('/admin/api/overview'),
+    fetchJson(`/admin/api/providers/status?days=${state.overviewProviderDays}`),
+  ]);
+  if (overviewRes.status === 'rejected') {
+    toast(`概览加载失败: ${overviewRes.reason.message}`, false);
+    return;
+  }
+  renderOverview(overviewRes.value);
+  if (providersRes.status === 'fulfilled') {
+    renderProviderOverview(providersRes.value.items || []);
+  } else {
+    renderProviderOverview([]);
+    toast(`Provider 图表加载失败: ${providersRes.reason.message}`, false);
+  }
+  setLastRefresh();
+}
+
+function renderOverview(data) {
+  const today = data.today || {};
+  const providers = data.providers || {};
+  document.getElementById('overview-kpis').innerHTML = [
+    {
+      tone: 'accent',
+      label: '今日请求',
+      value: fmtNum(today.total),
+      note: `<span class="kpi-note-line">${fmtNum((today.total_prompt_tokens || 0) + (today.total_completion_tokens || 0))} tokens · 📤 ${fmtNum(today.total_prompt_tokens || 0)} · 📥 ${fmtNum(today.total_completion_tokens || 0)}</span><span class="kpi-note-line">⚡ 📥 ${Number(today.actual_tps || 0).toFixed(1)} tok/s</span>`,
+    },
+    {
+      tone: 'teal',
+      label: '今日成功率',
+      value: fmtPct(today.success_rate),
+      note: `${today.success || 0} success / ${today.total_failures || 0} failure${(today.pending || 0) ? ` · ${today.pending} pending` : ''}`,
+    },
+    {
+      tone: 'warn',
+      label: '今日失败',
+      value: fmtNum(today.total_failures || 0),
+      note: `failover ${fmtNum(today.failover || 0)} · error ${fmtNum(today.error || 0)}${(today.aborted || 0) ? ` · aborted ${fmtNum(today.aborted || 0)}` : ''}`,
+    },
+    {
+      tone: 'ok',
+      label: '可用上游',
+      value: `${providers.available || 0}/${providers.total || 0}`,
+      note: providers.down ? `${providers.down} 个熔断中` : '全部可用',
+    },
+  ].map(item => `
+    <div class="kpi-card ${item.tone}">
+      <div class="kpi-label">${item.label}</div>
+      <div class="kpi-value">${item.value}</div>
+      <div class="kpi-note">${item.note}</div>
+    </div>
+  `).join('');
+
+  const issues = data.recent_issues || [];
+  document.getElementById('overview-issues').innerHTML = issues.length ? `
+    <div class="issue-list">
+      ${issues.map(item => `
+        <div class="issue-item">
+          <div class="issue-top">
+            <div class="issue-title">${escHtml(item.provider || 'unknown')} / ${escHtml(item.model || '—')}</div>
+            ${statusBadge(item.status)}
+          </div>
+          <div class="issue-meta">${fmtTs(item.ts)} · 请求模型 ${escHtml(item.requested_model || '—')}</div>
+          <div class="issue-reason">${escHtml(item.reason || '—')}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '<div class="empty">最近 7 天没有新的 failover 或 error。</div>';
+
+  const topModels = data.top_models || [];
+  document.getElementById('overview-models').innerHTML = topModels.length ? `
+    <div class="signal-list">
+      ${topModels.map(item => `
+        <div class="signal-item">
+          <div class="signal-top">
+            <div class="signal-title mono">${escHtml(item.model)}</div>
+            <span class="badge success">${fmtPct(item.success_rate)}</span>
+          </div>
+          <div class="signal-meta">
+            ${fmtNum(item.total)} 次命中 · ${item.success} success / ${item.failover} failover / ${item.error} error<br>
+            平均延迟 ${fmtLatency(item.avg_latency_ms)} · 回退命中 ${fmtNum(item.fallback_hits)}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '<div class="empty">今天还没有足够的模型命中数据。</div>';
+}
+
+function upstreamModelFamily(modelId) {
+  const raw = String(modelId || '').trim();
+  const lower = raw.toLowerCase();
+  const prefix = lower.includes('/') ? lower.split('/')[0] : lower.split(':')[0];
+  const map = {
+    'openai': 'OpenAI',
+    'anthropic': 'Anthropic',
+    'google': 'Google',
+    'meta': 'Meta',
+    'meta-llama': 'Meta',
+    'qwen': 'Qwen',
+    'mistral': 'Mistral',
+    'mistralai': 'Mistral',
+    'deepseek': 'DeepSeek',
+    'x-ai': 'xAI',
+    'grok': 'xAI',
+    'moonshotai': 'Moonshot',
+    'kimi': 'Moonshot',
+    'nvidia': 'NVIDIA',
+    'liquid': 'Liquid',
+    'z-ai': 'Z.AI',
+    'zhipu': 'Zhipu',
+    'glm': 'GLM',
+    'bytedance': 'ByteDance',
+    'doubao': 'ByteDance',
+    'cohere': 'Cohere',
+    'microsoft': 'Microsoft',
+    'openrouter': 'OpenRouter',
+    'stepfun': 'StepFun',
+    'minimax': 'MiniMax',
+    'perplexity': 'Perplexity',
+    'sarvam': 'Sarvam',
+    'allenai': 'AllenAI',
+    'nousresearch': 'Nous',
+    'internlm': 'InternLM',
+  };
+  return map[prefix] || titleCaseWord(prefix || 'other');
+}
+
+function groupUpstreamModels(models, search = '') {
+  const needle = String(search || '').trim().toLowerCase();
+  const groups = new Map();
+  models.forEach(modelId => {
+    const family = upstreamModelFamily(modelId);
+    const haystack = `${family} ${modelId}`.toLowerCase();
+    if (needle && !haystack.includes(needle)) return;
+    if (!groups.has(family)) groups.set(family, []);
+    groups.get(family).push(modelId);
+  });
+  return Array.from(groups.entries())
+    .map(([family, items]) => ({
+      family,
+      items: items.sort((a, b) => a.localeCompare(b, 'zh-CN')),
+      freeCount: items.filter(item => item.endsWith(':free')).length,
+    }))
+    .sort((a, b) => b.items.length - a.items.length || a.family.localeCompare(b.family, 'zh-CN'));
+}
+
+function upstreamModelTestStatusLabel(status) {
+  const map = {
+    success: '成功',
+    error: '失败',
+    running: '测试中',
+    pending: '等待中',
+  };
+  return map[status] || '未测试';
+}
+
+function buildUpstreamModelTestTitle(model, info) {
+  if (!info) return `${model} · 未测试`;
+  const parts = [`${model} · ${upstreamModelTestStatusLabel(info.status)}`];
+  if (info.provider) parts.push(`provider ${info.provider}`);
+  if (info.effective_model) parts.push(`命中 ${info.effective_model}`);
+  if (info.response_model && info.response_model !== info.effective_model) parts.push(`返回 ${info.response_model}`);
+  if (info.latency_ms) parts.push(`延迟 ${fmtLatency(info.latency_ms)}`);
+  if (info.reason) parts.push(`原因 ${info.reason}`);
+  if (info.reply_preview) parts.push(`回复 ${info.reply_preview}`);
+  return parts.join(' | ');
+}
+
+function renderUpstreamModelTestMark(model) {
+  const info = state.upstreamModelTest?.results?.[model];
+  if (info && info.status && info.status !== 'pending') {
+    const title = escHtml(buildUpstreamModelTestTitle(model, info));
+    if (info.status === 'success') return `<span class="catalog-test-mark success" title="${title}">&#9679;</span>`;
+    if (info.status === 'error') return `<span class="catalog-test-mark error" title="${title}">&#10005;</span>`;
+    if (info.status === 'running') return `<span class="catalog-test-mark running" title="${title}">&#9679;</span>`;
+  }
+  const availability = getUpstreamModelAvailabilityState();
+  if (availability.available.has(model)) return `<span class="catalog-test-mark success" title="${escHtml(`${model} · 最近测试可用`)}">&#9679;</span>`;
+  if (availability.failed.has(model)) return `<span class="catalog-test-mark error" title="${escHtml(`${model} · 最近测试失败`)}">&#10005;</span>`;
+  if (availability.running.has(model)) return `<span class="catalog-test-mark running" title="${escHtml(`${model} · 测试中`)}">&#9679;</span>`;
+  return '';
+}
+
+function renderUpstreamModelTestProgress() {
+  const progressEl = document.getElementById('upstream-model-test-progress');
+  const testBtn = document.getElementById('upstream-model-test-btn');
+  const testState = state.upstreamModelTest || {};
+  if (!progressEl || !testBtn) return;
+
+  testBtn.disabled = Boolean(testState.running);
+  testBtn.textContent = testState.running ? '后台测试中...' : '全部模型测试';
+
+  const total = Number(testState.total || 0);
+  const done = Number(testState.done || 0);
+  const success = Number(testState.success || 0);
+  const error = Number(testState.error || 0);
+  const pending = Number(testState.pending || 0);
+  const runningCount = Number(testState.running_count || 0);
+  const progressPct = Math.max(0, Math.min(100, Number(testState.progress_pct || 0)));
+  const nextRun = testState.next_run_at ? fmtTs(testState.next_run_at) : '—';
+  const trigger = testState.trigger === 'daily-03:00' ? '每日 03:00 自动任务' : '手动触发';
+  const timeNote = testState.running
+    ? `开始于 ${fmtTs(testState.started_at)}`
+    : (testState.finished_at ? `完成于 ${fmtTs(testState.finished_at)}` : '尚未执行');
+
+  if (!total) {
+    progressEl.className = 'catalog-progress-shell empty';
+    progressEl.innerHTML = `尚未执行全量模型测试。手动点击“全部模型测试”后会在后台逐个通过下游链路测试，超时 180 秒。下次自动测试时间：${escHtml(nextRun)}。`;
+    return;
+  }
+
+  progressEl.className = 'catalog-progress-shell';
+  progressEl.innerHTML = `
+    <div class="catalog-progress-head">
+      <div>
+        <div class="catalog-progress-title">${testState.running ? '后台全量测试进行中' : '最近一次全量测试'}</div>
+        <div class="catalog-progress-meta">${escHtml(trigger)} · ${escHtml(timeNote)} · 下次自动测试 ${escHtml(nextRun)}</div>
+      </div>
+      <div class="catalog-progress-value">${fmtNum(done)}/${fmtNum(total)}</div>
+    </div>
+    <div class="catalog-progress-bar"><span class="catalog-progress-fill" style="width:${progressPct}%"></span></div>
+    <div class="catalog-progress-summary">
+      <span class="catalog-progress-chip"><strong>${fmtNum(success)}</strong> 成功</span>
+      <span class="catalog-progress-chip"><strong>${fmtNum(error)}</strong> 失败</span>
+      <span class="catalog-progress-chip"><strong>${fmtNum(runningCount)}</strong> 进行中</span>
+      <span class="catalog-progress-chip"><strong>${fmtNum(pending)}</strong> 等待中</span>
+      <span class="catalog-progress-chip"><strong>${progressPct.toFixed(1)}%</strong> 进度</span>
+    </div>
+  `;
+}
+
+function upstreamModelReportBadgeLabel(status) {
+  const map = {
+    ready: 'LLM 报告',
+    fallback: '程序摘要',
+    generating: '生成中',
+    pending: '待生成',
+  };
+  return map[status] || '待生成';
+}
+
+function upstreamModelReportTriggerLabel(trigger) {
+  return trigger === 'daily-03:00' ? '每日 03:00 自动测试' : '手动触发';
+}
+
+function getLatestCompletedUpstreamModelReport() {
+  if (state.latestUpstreamModelTestReport) return state.latestUpstreamModelTestReport;
+  const reports = Array.isArray(state.upstreamModelTestReports) ? state.upstreamModelTestReports : [];
+  return reports.length ? reports[0] : null;
+}
+
+function getUpstreamModelAvailabilityState() {
+  const available = new Set();
+  const failed = new Set();
+  const running = new Set();
+  const results = state.upstreamModelTest?.results || {};
+  const resultKeys = Object.keys(results);
+  if (resultKeys.length) {
+    resultKeys.forEach(model => {
+      const status = results[model]?.status;
+      if (status === 'success') available.add(model);
+      else if (status === 'error') failed.add(model);
+      else if (status === 'running') running.add(model);
+    });
+    return { available, failed, running };
+  }
+  const latestReport = getLatestCompletedUpstreamModelReport();
+  const stats = latestReport?.stats || {};
+  (stats.available_models || []).forEach(model => available.add(String(model)));
+  (stats.failure_categories || []).forEach(item => {
+    (item?.models || []).forEach(model => failed.add(String(model)));
+  });
+  return { available, failed, running };
+}
+
+function getAvailableModelsForDisplay() {
+  return Array.from(getUpstreamModelAvailabilityState().available).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
+function copyModelName(encodedModel) {
+  const model = decodeURIComponent(String(encodedModel || ''));
+  return copyText(model, `已复制模型: ${model}`);
+}
+
+function renderAvailableModelRows(models) {
+  const list = Array.isArray(models) ? models : [];
+  if (!list.length) return '<div class="empty" style="margin-top:12px">当前还没有可展示的可用模型。</div>';
+  return `<div class="available-model-list">${
+    list.map(model => `
+      <div class="available-model-item">
+        <div class="available-model-name mono" title="${escHtml(model)}">${escHtml(model)}</div>
+        <button class="mini-copy-btn" data-model="${encodeURIComponent(model)}" onclick="copyModelName(this.dataset.model)">复制</button>
+      </div>
+    `).join('')
+  }</div>`;
+}
+
+function renderUpstreamAvailableModels() {
+  const el = document.getElementById('upstream-available-models');
+  if (!el) return;
+  const availableModels = getAvailableModelsForDisplay();
+  const latestReport = getLatestCompletedUpstreamModelReport();
+  const testState = state.upstreamModelTest || {};
+  const hasActiveRun = Boolean(testState.running);
+  const sourceTime = latestReport?.finished_at || latestReport?.started_at || testState.finished_at || testState.started_at || 0;
+  const sourceLabel = latestReport
+    ? `${upstreamModelReportTriggerLabel(latestReport.trigger)} · ${fmtTs(sourceTime)}`
+    : (hasActiveRun ? `当前测试进行中 · ${fmtTs(testState.started_at)}` : '完成全量测试后自动更新');
+  el.innerHTML = `
+    <div class="available-model-shell">
+      <div class="available-model-head">
+        <div>
+          <div class="available-model-title">可用模型</div>
+          <div class="available-model-meta">展示最近一次测试确认可用的模型。复制按钮可直接给下游客户端使用。${sourceTime ? ` 来源：${escHtml(sourceLabel)}` : ` ${escHtml(sourceLabel)}`}</div>
+        </div>
+        <span class="catalog-progress-chip"><strong>${fmtNum(availableModels.length)}</strong> 可用</span>
+      </div>
+      ${renderAvailableModelRows(availableModels)}
+    </div>
+  `;
+}
+
+function buildBulkTestReportDetailHtml(report) {
+  const stats = report?.stats || {};
+  const status = report?.llm_status || 'pending';
+  const successRate = Number(stats.success_rate ?? (report?.total ? (report.success / report.total) * 100 : 0));
+  const availableModels = Array.isArray(stats.available_models) ? stats.available_models : [];
+  const failureCategories = Array.isArray(stats.failure_categories) ? stats.failure_categories : [];
+  const sourceLabel = report?.llm_source === 'llm' ? 'LLM 总结' : (report?.llm_source === 'fallback' ? '程序摘要' : '等待生成');
+  return `
+    <div class="detail-grid">
+      <div class="detail-key">run id</div><div class="detail-value mono">${escHtml(report?.run_id || '—')}</div>
+      <div class="detail-key">触发方式</div><div class="detail-value">${escHtml(upstreamModelReportTriggerLabel(report?.trigger || 'manual'))}</div>
+      <div class="detail-key">测试区间</div><div class="detail-value">${escHtml(fmtTs(report?.started_at))}${report?.finished_at ? ` 至 ${escHtml(fmtTs(report.finished_at))}` : ''}</div>
+      <div class="detail-key">模型统计</div><div class="detail-value">${fmtNum(report?.total || 0)} 总数 / ${fmtNum(report?.success || 0)} 成功 / ${fmtNum(report?.error || 0)} 失败</div>
+      <div class="detail-key">成功率</div><div class="detail-value">${successRate.toFixed(1)}%</div>
+      <div class="detail-key">报告来源</div><div class="detail-value">${escHtml(sourceLabel)}${report?.llm_model ? ` · ${escHtml(report.llm_model)}` : ''}</div>
+      <div class="detail-key">可用模型</div><div class="detail-value">${fmtNum(stats.available_model_count ?? availableModels.length)}</div>
+      <div class="detail-key">失败分类</div><div class="detail-value">${fmtNum(stats.failure_category_count ?? failureCategories.length)}</div>
+    </div>
+    <div class="report-detail-section">
+      <div class="report-detail-title">完整报告</div>
+      <div class="code-block">${escHtml(report?.summary || '—')}</div>
+    </div>
+    <div class="report-detail-section">
+      <div class="report-detail-title">可用模型（${fmtNum(availableModels.length)}）</div>
+      ${renderAvailableModelRows(availableModels)}
+    </div>
+    <div class="report-detail-section">
+      <div class="report-detail-title">失败分类（${fmtNum(failureCategories.length)}）</div>
+      ${failureCategories.length ? `
+        <div class="report-detail-list">
+          ${failureCategories.map(item => `
+            <div class="report-detail-item">
+              <div class="report-detail-reason">${escHtml(item.reason || '未分类')}</div>
+              <div class="report-detail-meta">${fmtNum(item.count || 0)} 个模型${Array.isArray(item.providers) && item.providers.length ? ` · provider ${escHtml(item.providers.join('、'))}` : ''}</div>
+              <div class="report-detail-models mono">${escHtml((item.models || []).join('\n') || '—')}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty">没有失败分类。</div>'}
+    </div>
+    ${report?.llm_error ? `<div class="report-note">LLM 错误: ${escHtml(report.llm_error)}</div>` : ''}
+  `;
+}
+
+function openBulkTestReport(reportId) {
+  const reports = Array.isArray(state.upstreamModelTestReports) ? state.upstreamModelTestReports : [];
+  const latestReport = state.latestUpstreamModelTestReport;
+  const numericId = Number(reportId || 0);
+  const report = reports.find(item => Number(item.id || 0) === numericId)
+    || (latestReport && Number(latestReport.id || 0) === numericId ? latestReport : null);
+  if (!report) {
+    toast('没有找到这份测试报告', false);
+    return;
+  }
+  openModal('测试报告详情', buildBulkTestReportDetailHtml(report));
+}
+
+function changeUpstreamModelTestReportPage(delta) {
+  const next = state.upstreamModelTestReportPage + Number(delta || 0);
+  if (next < 1 || next > state.upstreamModelTestReportPages || next === state.upstreamModelTestReportPage) return;
+  loadUpstreamModelTestReports(next);
+}
+
+function renderUpstreamModelTestReports() {
+  const el = document.getElementById('upstream-model-test-reports');
+  const reports = Array.isArray(state.upstreamModelTestReports) ? state.upstreamModelTestReports : [];
+  const page = Number(state.upstreamModelTestReportPage || 1);
+  const pages = Number(state.upstreamModelTestReportPages || 1);
+  const totalReports = Number(state.upstreamModelTestReportTotal || reports.length || 0);
+  if (!el) return;
+  if (!reports.length) {
+    el.innerHTML = '<div class="catalog-progress-shell empty" style="margin-top:16px">每次全量测试结束后，这里都会保留自动生成的测试报告。</div>';
+    return;
+  }
+  el.innerHTML = `<div class="report-list">${
+    reports.map((report, index) => {
+      const stats = report.stats || {};
+      const status = report.llm_status || 'pending';
+      const summary = report.summary || (status === 'pending' || status === 'generating' ? '测试已结束，报告正在生成中。' : '暂无可展示的报告内容。');
+      const preview = getBulkTestReportSummaryPreview(summary, 4);
+      const sourceLabel = report.llm_source === 'llm' ? 'LLM 总结' : (report.llm_source === 'fallback' ? '程序摘要' : '等待生成');
+      const successRate = Number(stats.success_rate ?? (report.total ? (report.success / report.total) * 100 : 0));
+      const topReasons = Array.isArray(stats.top_error_reasons) ? stats.top_error_reasons.slice(0, 3) : [];
+      const availableCount = Number(stats.available_model_count ?? (Array.isArray(stats.available_models) ? stats.available_models.length : 0));
+      const failureCategoryCount = Number(stats.failure_category_count ?? (Array.isArray(stats.failure_categories) ? stats.failure_categories.length : topReasons.length));
+      return `
+        <div class="report-card ${index === 0 ? 'latest' : ''}">
+          <div class="report-head">
+            <div>
+              <div class="report-title">${page === 1 && index === 0 ? '最近测试报告' : '历史测试报告'}</div>
+              <div class="report-meta">${escHtml(upstreamModelReportTriggerLabel(report.trigger))} · ${escHtml(fmtTs(report.started_at))}${report.finished_at ? ` 至 ${escHtml(fmtTs(report.finished_at))}` : ''}</div>
+            </div>
+            <span class="report-badge ${escHtml(status)}">${escHtml(upstreamModelReportBadgeLabel(status))}</span>
+          </div>
+          <div class="catalog-progress-summary">
+            <span class="catalog-progress-chip"><strong>${fmtNum(report.total || 0)}</strong> 模型</span>
+            <span class="catalog-progress-chip"><strong>${fmtNum(report.success || 0)}</strong> 成功</span>
+            <span class="catalog-progress-chip"><strong>${fmtNum(report.error || 0)}</strong> 失败</span>
+            <span class="catalog-progress-chip"><strong>${Number(successRate || 0).toFixed(1)}%</strong> 成功率</span>
+            <span class="catalog-progress-chip"><strong>${fmtNum(availableCount)}</strong> 可用模型</span>
+            <span class="catalog-progress-chip"><strong>${fmtNum(failureCategoryCount)}</strong> 失败分类</span>
+            <span class="catalog-progress-chip"><strong>${escHtml(sourceLabel)}</strong>${report.llm_model ? ` · ${escHtml(report.llm_model)}` : ''}</span>
+          </div>
+          <div class="report-preview">${escHtml(preview).replace(/\n/g, '<br>')}</div>
+          ${topReasons.length ? `<div class="report-note">主要失败类型: ${escHtml(topReasons.map(item => `${item.name} (${item.count})`).join('；'))}</div>` : ''}
+          ${report.llm_error ? `<div class="report-note">LLM 错误: ${escHtml(report.llm_error)}</div>` : ''}
+          <div class="report-actions">
+            <div class="report-meta">主页面只展示摘要，点击按钮查看完整报告、可用模型和失败分类。</div>
+            <button class="ghost-btn" onclick="openBulkTestReport(${Number(report.id || 0)})">查看全文</button>
+          </div>
+        </div>
+      `;
+    }).join('')
+  }</div>
+  <div class="report-pager">
+    <div class="pager-info">第 ${fmtNum(page)} / ${fmtNum(pages)} 页 · 共 ${fmtNum(totalReports)} 份报告 · 每页 3 份</div>
+    <div class="pager">
+      <button class="ghost-btn" onclick="changeUpstreamModelTestReportPage(-1)" ${page <= 1 ? 'disabled' : ''}>上一页</button>
+      <button class="ghost-btn" onclick="changeUpstreamModelTestReportPage(1)" ${page >= pages ? 'disabled' : ''}>下一页</button>
+    </div>
+  </div>`;
+}
+
+function renderUpstreamModelCatalog() {
+  const summaryEl = document.getElementById('upstream-model-summary');
+  const catalogEl = document.getElementById('upstream-model-catalog');
+  const search = document.getElementById('upstream-model-search')?.value || '';
+  const models = state.upstreamModels || [];
+  const testResults = state.upstreamModelTest?.results || {};
+  const availability = getUpstreamModelAvailabilityState();
+  const availableModels = Array.from(availability.available);
+  if (!summaryEl || !catalogEl) return;
+
+  const grouped = groupUpstreamModels(models, search);
+  summaryEl.innerHTML = [
+    {
+      label: '总模型数',
+      value: fmtNum(models.length),
+      note: search ? `当前搜索命中 ${grouped.reduce((sum, group) => sum + group.items.length, 0)} 个` : '真实上游 /models 聚合结果',
+    },
+    {
+      label: '可用模型',
+      value: fmtNum(availableModels.length),
+      note: availableModels.length ? '最近一次全量测试确认可用' : '完成测试后自动更新',
+    },
+    {
+      label: '分类数',
+      value: fmtNum(grouped.length),
+      note: '按模型家族自动分组',
+    },
+    {
+      label: '最近同步',
+      value: state.upstreamModelsFetchedAt ? new Date(state.upstreamModelsFetchedAt * 1000).toLocaleTimeString('zh-CN', { hour12: false }) : '—',
+      note: state.upstreamModelsFetchedAt ? fmtTs(state.upstreamModelsFetchedAt) : '还没有成功拉取',
+    },
+  ].map(item => `
+    <div class="catalog-stat">
+      <div class="catalog-stat-label">${item.label}</div>
+      <div class="catalog-stat-value">${item.value}</div>
+      <div class="catalog-stat-note">${item.note}</div>
+    </div>
+  `).join('');
+
+  if (!models.length) {
+    catalogEl.innerHTML = '<div class="empty">还没有拿到上游模型目录，可以点“刷新上游模型”手动拉一次。</div>';
+    return;
+  }
+  if (!grouped.length) {
+    catalogEl.innerHTML = '<div class="empty">当前搜索没有命中任何上游模型。</div>';
+    return;
+  }
+  catalogEl.innerHTML = `<div class="catalog-group-list">${
+    grouped.map((group, index) => {
+      const successCount = group.items.filter(model => availability.available.has(model)).length;
+      const errorCount = group.items.filter(model => availability.failed.has(model)).length;
+      const runningCount = group.items.filter(model => availability.running.has(model)).length;
+      const pendingCount = Math.max(group.items.length - successCount - errorCount - runningCount, 0);
+      return `
+      <details class="catalog-group" ${index < 6 || search ? 'open' : ''}>
+        <summary>
+          <div class="catalog-group-head">
+            <div>
+              <div class="catalog-group-title">${escHtml(group.family)}</div>
+              <div class="catalog-group-meta">可用 ${successCount} · 失败 ${errorCount} · 测试中 ${runningCount} · 待确认 ${pendingCount}</div>
+            </div>
+            <div class="catalog-group-count">${fmtNum(group.items.length)}</div>
+          </div>
+        </summary>
+        <div class="catalog-models">
+          ${group.items.map(model => `
+            <span class="catalog-pill mono" title="${escHtml(buildUpstreamModelTestTitle(model, testResults[model]))}">
+              <span>${escHtml(model)}</span>
+              ${renderUpstreamModelTestMark(model)}
+            </span>
+          `).join('')}
+        </div>
+      </details>
+    `;}).join('')
+  }</div>`;
+}
+
+async function loadUpstreamModelCatalog(refresh = false, silent = false) {
+  const refreshBtn = document.getElementById('upstream-model-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = refresh ? '刷新中...' : '同步模型目录...';
+  }
+  state.upstreamModelsRefreshing = true;
+  try {
+    const data = await fetchJson(`/admin/api/upstream-models${refresh ? '?refresh=1' : ''}`);
+    state.upstreamModels = data.items || [];
+    state.upstreamModelsFetchedAt = Number(data.fetched_at || 0);
+    renderUpstreamModelTestProgress();
+    renderUpstreamAvailableModels();
+    renderUpstreamModelCatalog();
+  } catch (error) {
+    if (!silent) toast(`上游模型目录加载失败: ${error.message}`, false);
+  } finally {
+    state.upstreamModelsRefreshing = false;
+    if (refreshBtn) {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = '刷新上游模型';
+    }
+  }
+}
+
+function scheduleUpstreamModelTestPoll() {
+  window.clearTimeout(state.timers.upstreamModelTestPoll);
+  if (state.page !== 'upstreams' || !state.upstreamModelTest?.running) return;
+  state.timers.upstreamModelTestPoll = window.setTimeout(() => {
+    loadUpstreamModelTestStatus(true);
+    loadUpstreamModelTestReports(state.upstreamModelTestReportPage, true);
+  }, 2000);
+}
+
+async function loadUpstreamModelTestStatus(silent = false) {
+  try {
+    const data = await fetchJson('/admin/api/upstream-models/test-status');
+    state.upstreamModelTest = {
+      running: false,
+      total: 0,
+      done: 0,
+      success: 0,
+      error: 0,
+      pending: 0,
+      running_count: 0,
+      progress_pct: 0,
+      results: {},
+      started_at: 0,
+      finished_at: 0,
+      next_run_at: 0,
+      trigger: '',
+      report_status: '',
+      report_summary: '',
+      report_source: '',
+      report_model: '',
+      report_error: '',
+      report_overview: {},
+      ...(data || {}),
+    };
+    renderUpstreamModelTestProgress();
+    renderUpstreamAvailableModels();
+    renderUpstreamModelCatalog();
+    scheduleUpstreamModelTestPoll();
+  } catch (error) {
+    if (!silent) toast(`模型测试状态加载失败: ${error.message}`, false);
+  }
+}
+
+async function loadUpstreamModelTestReports(page = state.upstreamModelTestReportPage, silent = false) {
+  try {
+    const targetPage = Math.max(1, Number(page || 1));
+    const data = await fetchJson(`/admin/api/upstream-models/test-reports?limit=3&page=${targetPage}`);
+    state.upstreamModelTestReports = Array.isArray(data.items) ? data.items : [];
+    state.upstreamModelTestReportPage = Number(data.page || targetPage);
+    state.upstreamModelTestReportPages = Number(data.pages || 1);
+    state.upstreamModelTestReportTotal = Number(data.total || state.upstreamModelTestReports.length || 0);
+    if (state.upstreamModelTestReportPage === 1) {
+      state.latestUpstreamModelTestReport = state.upstreamModelTestReports[0] || null;
+    }
+    renderUpstreamAvailableModels();
+    renderUpstreamModelTestReports();
+  } catch (error) {
+    if (!silent) toast(`测试报告加载失败: ${error.message}`, false);
+  }
+}
+
+async function startAllUpstreamModelTests() {
+  const models = Array.isArray(state.upstreamModels) && state.upstreamModels.length ? state.upstreamModels : null;
+  const button = document.getElementById('upstream-model-test-btn');
+  if (button) {
+    button.disabled = true;
+    button.textContent = '提交中...';
+  }
+  try {
+    state.upstreamModelTestReportPage = 1;
+    const payload = await fetchJson('/admin/api/upstream-models/test-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        models,
+        refresh: !models,
+      }),
+    });
+    state.upstreamModelTest = {
+      running: false,
+      total: 0,
+      done: 0,
+      success: 0,
+      error: 0,
+      pending: 0,
+      running_count: 0,
+      progress_pct: 0,
+      results: {},
+      started_at: 0,
+      finished_at: 0,
+      next_run_at: 0,
+      trigger: '',
+      report_status: '',
+      report_summary: '',
+      report_source: '',
+      report_model: '',
+      report_error: '',
+      report_overview: {},
+      ...(payload || {}),
+    };
+    renderUpstreamModelTestProgress();
+    renderUpstreamAvailableModels();
+    renderUpstreamModelCatalog();
+    loadUpstreamModelTestReports(1, true);
+    scheduleUpstreamModelTestPoll();
+    toast(state.upstreamModelTest.running ? '后台全量模型测试已启动' : '模型测试状态已刷新');
+  } catch (error) {
+    renderUpstreamModelTestProgress();
+    toast(`启动全量模型测试失败: ${error.message}`, false);
+  }
+}
+
+function renderProviderOverview(providers) {
+  const healthEl = document.getElementById('overview-provider-health');
+  const trafficEl = document.getElementById('overview-provider-traffic');
+  if (!healthEl || !trafficEl) return;
+
+  if (!providers.length) {
+    healthEl.innerHTML = `
+      <div class="chart-title">健康概况</div>
+      <div class="chart-sub">近 ${state.overviewProviderDays} 天没有拿到 provider 状态数据。</div>
+      <div class="empty" style="margin-top:14px">当前没有可渲染的 provider 统计。</div>
+    `;
+    trafficEl.innerHTML = `
+      <div class="chart-title">流量热区</div>
+      <div class="chart-sub">没有 provider 数据时，不展示命中热区。</div>
+      <div class="empty" style="margin-top:14px">等待新状态数据。</div>
+    `;
+    return;
+  }
+
+  const total = providers.length;
+  const available = providers.filter(item => item.available).length;
+  const down = Math.max(0, total - available);
+  const traffic = providers.filter(item => Number(item.total || 0) > 0).length;
+  const idle = Math.max(0, total - traffic);
+  const availabilityPct = total ? available / total * 100 : 0;
+  const downPct = total ? down / total * 100 : 0;
+  const trafficPct = total ? traffic / total * 100 : 0;
+  const idlePct = total ? idle / total * 100 : 0;
+
+  healthEl.innerHTML = `
+    <div class="chart-title">健康概况</div>
+    <div class="chart-sub">按实际 API key/provider 聚合，不再显示旧的 free 渠道和逐条明细。</div>
+    <div class="stack-group" style="margin-top:16px">
+      <div class="stack-row">
+        <div class="stack-label">当前可用性</div>
+        <div class="stack-stat">${available}/${total} 可用</div>
+      </div>
+      <div class="stack-bar">
+        <div class="stack-segment up" style="width:${availabilityPct.toFixed(2)}%"></div>
+        <div class="stack-segment down" style="width:${downPct.toFixed(2)}%"></div>
+      </div>
+    </div>
+    <div class="stack-group">
+      <div class="stack-row">
+        <div class="stack-label">近 ${state.overviewProviderDays} 天流量覆盖</div>
+        <div class="stack-stat">${traffic}/${total} 有流量</div>
+      </div>
+      <div class="stack-bar">
+        <div class="stack-segment traffic" style="width:${trafficPct.toFixed(2)}%"></div>
+        <div class="stack-segment idle" style="width:${idlePct.toFixed(2)}%"></div>
+      </div>
+    </div>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <div class="legend-top"><span class="legend-dot up"></span><span>Available</span></div>
+        <div class="legend-value">${fmtNum(available)}</div>
+        <div class="legend-note">当前可以继续接流量的 provider</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-top"><span class="legend-dot down"></span><span>Open Circuit</span></div>
+        <div class="legend-value">${fmtNum(down)}</div>
+        <div class="legend-note">被熔断，等待恢复窗口</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-top"><span class="legend-dot traffic"></span><span>Active Providers</span></div>
+        <div class="legend-value">${fmtNum(traffic)}</div>
+        <div class="legend-note">近 ${state.overviewProviderDays} 天至少命中过一次请求</div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-top"><span class="legend-dot idle"></span><span>Idle Providers</span></div>
+        <div class="legend-value">${fmtNum(idle)}</div>
+        <div class="legend-note">近 ${state.overviewProviderDays} 天还没有真实流量</div>
+      </div>
+    </div>
+  `;
+
+  const sortedProviders = [...providers]
+    .sort((a, b) => String(a.provider || '').localeCompare(String(b.provider || ''), 'zh-CN'));
+  const maxTraffic = Math.max(...sortedProviders.map(item => Number(item.total || 0)), 1);
+  const leftPad = 42;
+  const rightPad = 18;
+  const topPad = 14;
+  const bottomPad = 24;
+  const innerHeight = 164;
+  const svgHeight = topPad + innerHeight + bottomPad;
+  const shellWidth = Math.max(560, Math.round((trafficEl.getBoundingClientRect().width || trafficEl.clientWidth || 720) - 4));
+  const svgWidth = shellWidth;
+  const plotWidth = Math.max(120, svgWidth - leftPad - rightPad);
+  const tickCount = 4;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, idx) => {
+    const value = Math.round(maxTraffic * (tickCount - idx) / tickCount);
+    const y = topPad + innerHeight * idx / tickCount;
+    return { value, y };
+  });
+  const pointX = idx => leftPad + (sortedProviders.length === 1 ? plotWidth / 2 : idx * (plotWidth / Math.max(sortedProviders.length - 1, 1)));
+  const pointY = total => topPad + innerHeight - (Number(total || 0) / maxTraffic) * innerHeight;
+  const points = sortedProviders.map((item, index) => ({ item, x: pointX(index), y: pointY(item.total) }));
+  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+  const areaPath = [
+    `M ${leftPad} ${svgHeight - bottomPad}`,
+    ...points.map(point => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`),
+    `L ${leftPad + plotWidth} ${svgHeight - bottomPad}`,
+    'Z',
+  ].join(' ');
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  trafficEl.innerHTML = `
+    <div class="chart-title">流量热区</div>
+    <div class="chart-sub">全部 provider id 压缩在固定区域里，按名称排序映射到连续横轴；纵坐标是请求次数。悬浮图面查看对应 provider 的详细信息。</div>
+    <div class="traffic-chart-shell">
+      <svg class="traffic-chart-svg" width="100%" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="trafficAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="rgba(198,90,17,.30)"></stop>
+            <stop offset="100%" stop-color="rgba(198,90,17,.04)"></stop>
+          </linearGradient>
+        </defs>
+        ${ticks.map(tick => `
+          <line class="traffic-grid-line" x1="${leftPad}" y1="${tick.y}" x2="${svgWidth - rightPad}" y2="${tick.y}"></line>
+          <text class="traffic-axis-label" x="${leftPad - 8}" y="${tick.y + 4}" text-anchor="end">${fmtNum(tick.value)}</text>
+        `).join('')}
+        <line class="traffic-axis-line" x1="${leftPad}" y1="${topPad}" x2="${leftPad}" y2="${svgHeight - bottomPad}"></line>
+        <line class="traffic-axis-line" x1="${leftPad}" y1="${svgHeight - bottomPad}" x2="${svgWidth - rightPad}" y2="${svgHeight - bottomPad}"></line>
+        <path class="traffic-area" d="${areaPath}"></path>
+        <path class="traffic-line" d="${linePath}"></path>
+        <line class="traffic-focus-line" id="provider-traffic-focus-line" x1="${leftPad}" x2="${leftPad}" y1="${topPad}" y2="${svgHeight - bottomPad}" opacity="0"></line>
+        <circle class="traffic-focus-point" id="provider-traffic-focus-point" cx="${leftPad}" cy="${svgHeight - bottomPad}" r="5" opacity="0"></circle>
+        <rect class="traffic-overlay" id="provider-traffic-overlay" x="${leftPad}" y="${topPad}" width="${plotWidth}" height="${innerHeight}" rx="16"></rect>
+      </svg>
+      <div class="chart-tooltip" id="provider-traffic-tooltip"></div>
+    </div>
+  `;
+  const tooltip = trafficEl.querySelector('#provider-traffic-tooltip');
+  const shell = trafficEl.querySelector('.traffic-chart-shell');
+  const overlay = trafficEl.querySelector('#provider-traffic-overlay');
+  const focusLine = trafficEl.querySelector('#provider-traffic-focus-line');
+  const focusPoint = trafficEl.querySelector('#provider-traffic-focus-point');
+  const renderFocus = event => {
+    if (!tooltip || !shell || !overlay || !focusLine || !focusPoint) return;
+    const rect = overlay.getBoundingClientRect();
+    const ratio = clamp((event.clientX - rect.left) / Math.max(rect.width, 1), 0, 1);
+    const index = clamp(Math.round(ratio * Math.max(sortedProviders.length - 1, 0)), 0, Math.max(sortedProviders.length - 1, 0));
+    const point = points[index];
+    const item = point.item;
+    focusLine.setAttribute('x1', point.x.toFixed(2));
+    focusLine.setAttribute('x2', point.x.toFixed(2));
+    focusLine.setAttribute('opacity', '1');
+    focusPoint.setAttribute('cx', point.x.toFixed(2));
+    focusPoint.setAttribute('cy', point.y.toFixed(2));
+    focusPoint.setAttribute('fill', item.available ? '#c65a11' : '#b42318');
+    focusPoint.setAttribute('opacity', '1');
+    tooltip.innerHTML = `
+      <div class="chart-tooltip-title">${escHtml(item.provider || 'unknown')}</div>
+      <div class="chart-tooltip-meta">
+        请求 ${fmtNum(item.total)} 次<br>
+        成功率 ${fmtPct(item.success_rate)} · 平均延迟 ${fmtLatency(item.avg_latency_ms)}<br>
+        状态 ${item.available ? 'available' : 'open circuit'} · ${item.success} success / ${item.failover} failover / ${item.error} error
+      </div>
+    `;
+    const shellRect = shell.getBoundingClientRect();
+    const offsetX = event.clientX - shellRect.left + 14;
+    const offsetY = event.clientY - shellRect.top - 18;
+    const maxLeft = Math.max(8, shellRect.width - 240);
+    tooltip.style.left = `${Math.min(Math.max(offsetX, 8), maxLeft)}px`;
+    tooltip.style.top = `${Math.max(offsetY, 8)}px`;
+    tooltip.classList.add('open');
+  };
+  overlay?.addEventListener('mouseenter', renderFocus);
+  overlay?.addEventListener('mousemove', renderFocus);
+  overlay?.addEventListener('mouseleave', () => {
+    tooltip?.classList.remove('open');
+    focusLine?.setAttribute('opacity', '0');
+    focusPoint?.setAttribute('opacity', '0');
+  });
+}
+
+async function loadLogs() {
+  try {
+    const params = new URLSearchParams({
+      limit: String(state.logLimit),
+      page: String(state.logPage),
+    });
+    const search = document.getElementById('log-search')?.value.trim() || '';
+    const status = document.getElementById('log-status')?.value || '';
+    if (search) params.set('q', search);
+    if (status) params.set('status', status);
+    const data = await fetchJson(`/admin/api/logs?${params.toString()}`);
+    state.logs = data.items || [];
+    state.logTotal = Number(data.total || 0);
+    state.logPages = Math.max(1, Number(data.pages || 1));
+    state.logPage = Math.min(Math.max(1, Number(data.page || state.logPage || 1)), state.logPages);
+    renderLogs();
+    setLastRefresh();
+  } catch (error) {
+    toast(`日志加载失败: ${error.message}`, false);
+  }
+}
+
+function renderLogs() {
+  const rows = state.logs || [];
+  document.getElementById('log-count').textContent = `共 ${fmtNum(state.logTotal)} 条请求`;
+  document.getElementById('log-page-info').textContent = `第 ${state.logPage} / ${state.logPages} 页`;
+  document.getElementById('log-tbody').innerHTML = rows.length ? rows.map(item => `
+    <tr class="clickable" onclick="openLog(${item.id})">
+      <td>${fmtTs(item.ts)}</td>
+      <td><div class="mono">${escHtml(item.requested_model || item.virtual_model || '—')}</div></td>
+      <td><div class="mono">${escHtml(item.provider || '—')}</div></td>
+      <td><div class="mono">${escHtml(item.model || '—')}</div></td>
+      <td>${statusBadge(item.status)}</td>
+      <td>
+        <div>${fmtNum(item.total_attempts || 1)} 次</div>
+        <div class="small">${fmtNum(item.failover_attempts || 0)} failover</div>
+      </td>
+      <td>${item.stream ? 'stream' : 'text'}</td>
+      <td>${fmtLatency(item.latency_ms)}</td>
+      <td>${fmtNum((item.prompt_tokens || 0) + (item.completion_tokens || 0))}</td>
+      <td><div class="small">${escHtml(item.reason || '—')}</div></td>
+    </tr>
+  `).join('') : '<tr><td colspan="10"><div class="empty">没有匹配的日志。</div></td></tr>';
+  document.getElementById('log-pager').innerHTML = `
+    <button class="ghost-btn" onclick="changeLogPage(-1)" ${state.logPage <= 1 ? 'disabled' : ''}>上一页</button>
+    <button class="ghost-btn" onclick="changeLogPage(1)" ${state.logPage >= state.logPages ? 'disabled' : ''}>下一页</button>
+  `;
+}
+
+function resetLogPage() {
+  state.logPage = 1;
+  loadLogs();
+}
+
+function setLogLimit(limit) {
+  state.logLimit = Number(limit) || 50;
+  state.logPage = 1;
+  loadLogs();
+}
+
+function changeLogPage(delta) {
+  const next = state.logPage + Number(delta || 0);
+  if (next < 1 || next > state.logPages || next === state.logPage) return;
+  state.logPage = next;
+  loadLogs();
+}
+
+async function clearLogs() {
+  if (!window.confirm('确认清空 request_log 和 stats 吗？')) return;
+  try {
+    await fetchJson('/admin/api/logs', { method: 'DELETE' });
+    state.logs = [];
+    state.logTotal = 0;
+    state.logPages = 1;
+    state.logPage = 1;
+    renderLogs();
+    toast('日志已清空');
+    if (state.page === 'overview') loadOverview();
+    if (state.page === 'upstreams') loadStatus();
+  } catch (error) {
+    toast(`清空失败: ${error.message}`, false);
+  }
+}
+
+async function openLog(id) {
+  try {
+    const log = await fetchJson(`/admin/api/logs/${id}`);
+    const attempts = log.attempts || [];
+    openModal('请求详情', `
+      <div class="detail-grid">
+        <div class="detail-key">request id</div><div class="detail-value mono">${escHtml(log.request_id || '—')}</div>
+        <div class="detail-key">virtual model</div><div class="detail-value mono">${escHtml(log.virtual_model || '—')}</div>
+        <div class="detail-key">requested model</div><div class="detail-value mono">${escHtml(log.requested_model || '—')}</div>
+        <div class="detail-key">provider</div><div class="detail-value mono">${escHtml(log.provider || '—')}</div>
+        <div class="detail-key">api key</div><div class="detail-value mono">${escHtml(log.api_key_hint || '—')}</div>
+        <div class="detail-key">actual model</div><div class="detail-value mono">${escHtml(log.model || '—')}</div>
+        <div class="detail-key">status</div><div class="detail-value">${statusBadge(log.status)}</div>
+        <div class="detail-key">stream</div><div class="detail-value">${log.stream ? 'true' : 'false'}</div>
+        <div class="detail-key">latency</div><div class="detail-value">${fmtLatency(log.latency_ms)}</div>
+        <div class="detail-key">tokens</div><div class="detail-value">prompt ${fmtNum(log.prompt_tokens || 0)} / completion ${fmtNum(log.completion_tokens || 0)}</div>
+        <div class="detail-key">time</div><div class="detail-value">${fmtTs(log.ts)}</div>
+        <div class="detail-key">reason</div><div class="detail-value">${escHtml(log.reason || '—')}</div>
+      </div>
+      <div class="detail-key" style="margin-top:18px">attempt chain</div>
+      ${attempts.length ? `
+        <div class="signal-list">
+          ${attempts.map((item, index) => `
+            <div class="signal-item">
+              <div class="signal-top">
+                <div class="signal-title">#${index + 1} ${escHtml(item.provider || 'gateway')}</div>
+                ${statusBadge(item.status)}
+              </div>
+              <div class="signal-meta">
+                ${fmtTs(item.ts)} · ${item.stream ? 'stream' : 'text'} · ${fmtLatency(item.latency_ms)} · prompt ${fmtNum(item.prompt_tokens || 0)} / completion ${fmtNum(item.completion_tokens || 0)}<br>
+                模型 ${escHtml(item.model || '—')} · key ${escHtml(item.api_key_hint || '—')}
+              </div>
+              <div class="issue-reason">${escHtml(item.reason || '—')}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty" style="margin-top:8px">没有可显示的尝试链。</div>'}
+      <div class="detail-key" style="margin-top:18px">request body</div>
+      <div class="code-block">${escHtml(log.request_body || '—')}</div>
+      <div class="detail-key" style="margin-top:18px">upstream request body</div>
+      <div class="code-block">${escHtml(log.upstream_request_body || '—')}</div>
+      <div class="detail-key" style="margin-top:18px">upstream response body</div>
+      <div class="code-block">${escHtml(log.upstream_response_body || '—')}</div>
+      <div class="detail-key" style="margin-top:18px">response body</div>
+      <div class="code-block">${escHtml(log.response_body || '—')}</div>
+    `);
+  } catch (error) {
+    toast(`详情加载失败: ${error.message}`, false);
+  }
+}
+
+function openModal(title, html) {
+  const titleEl = document.getElementById('modal-title');
+  const bodyEl = document.getElementById('modal-body');
+  if (titleEl) titleEl.textContent = title || '详情';
+  if (bodyEl) bodyEl.innerHTML = html || '';
+  document.getElementById('modal-mask').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-mask').classList.remove('open');
+}
+
+function setStatusDays(days) {
+  state.statusDays = Number(days);
+  document.querySelectorAll('[data-days]').forEach(el => el.classList.toggle('active', Number(el.dataset.days) === state.statusDays));
+  loadStatus();
+}
+
+function setModelLimit(limit) {
+  state.modelLimit = Number(limit);
+  loadStatus();
+}
+
+async function loadStatus(refreshCatalog = false) {
+  const [metricsRes, catalogRes, bulkTestRes, reportRes] = await Promise.allSettled([
+    fetchJson(`/admin/api/model-metrics?days=${state.statusDays}&limit=${state.modelLimit}`),
+    loadUpstreamModelCatalog(refreshCatalog, true),
+    loadUpstreamModelTestStatus(true),
+    loadUpstreamModelTestReports(state.upstreamModelTestReportPage, true),
+  ]);
+  if (metricsRes.status === 'fulfilled') {
+    renderModelMetrics(metricsRes.value.items || []);
+    loadSidebarUsageModels(true);
+    setLastRefresh();
+  } else {
+    toast(`上游状态加载失败: ${metricsRes.reason.message}`, false);
+  }
+  if (catalogRes.status === 'rejected') {
+    toast(`上游模型目录加载失败: ${catalogRes.reason.message}`, false);
+  }
+  if (bulkTestRes.status === 'rejected') {
+    toast(`模型测试状态加载失败: ${bulkTestRes.reason.message}`, false);
+  }
+  if (reportRes.status === 'rejected') {
+    toast(`测试报告加载失败: ${reportRes.reason.message}`, false);
+  }
+}
+
+function renderModelMetrics(models) {
+  const el = document.getElementById('model-metrics-chart');
+  const items = Array.isArray(models) ? models : [];
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = '<div class="catalog-progress-shell empty">当前时间范围内没有模型统计。</div>';
+    return;
+  }
+
+  const sorted = [...items].sort((a, b) => (Number(b.total || 0) - Number(a.total || 0)) || String(a.model || '').localeCompare(String(b.model || ''), 'zh-CN'));
+  const totalRequests = sorted.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const totalSuccess = sorted.reduce((sum, item) => sum + Number(item.success || 0), 0);
+  const totalFailover = sorted.reduce((sum, item) => sum + Number(item.failover || 0), 0);
+  const totalError = sorted.reduce((sum, item) => sum + Number(item.error || 0), 0);
+  const overallSuccessRate = totalRequests ? (totalSuccess / totalRequests) * 100 : 0;
+
+  const svgWidth = 980;
+  const svgHeight = 360;
+  const leftPad = 58;
+  const rightPad = 18;
+  const topPad = 20;
+  const bottomPad = 44;
+  const plotWidth = svgWidth - leftPad - rightPad;
+  const innerHeight = svgHeight - topPad - bottomPad;
+  const maxTotal = Math.max(...sorted.map(item => Number(item.total || 0)), 1);
+  const tickCount = 4;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, idx) => {
+    const value = Math.round(maxTotal * (tickCount - idx) / tickCount);
+    const y = topPad + innerHeight * idx / tickCount;
+    return { value, y };
+  });
+  const slotWidth = plotWidth / Math.max(sorted.length, 1);
+  const barWidth = Math.max(3, Math.min(18, slotWidth * 0.74));
+  const labelStep = Math.max(1, Math.ceil(sorted.length / 10));
+  const baseY = svgHeight - bottomPad;
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const bars = sorted.map((item, index) => {
+    const total = Math.max(0, Number(item.total || 0));
+    const success = Math.max(0, Number(item.success || 0));
+    const failover = Math.max(0, Number(item.failover || 0));
+    const error = Math.max(0, Number(item.error || 0));
+    const height = maxTotal ? (total / maxTotal) * innerHeight : 0;
+    const successHeight = total ? (success / total) * height : 0;
+    const failoverHeight = total ? (failover / total) * height : 0;
+    const errorHeight = Math.max(height - successHeight - failoverHeight, 0);
+    const x = leftPad + index * slotWidth + (slotWidth - barWidth) / 2;
+    return {
+      item,
+      index,
+      x,
+      width: barWidth,
+      total,
+      yTop: baseY - height,
+      successHeight,
+      failoverHeight,
+      errorHeight,
+    };
+  });
+
+  el.innerHTML = `
+    <div class="model-metric-chart-wrap">
+      <div class="catalog-progress-summary" style="margin-top:0">
+        <span class="catalog-progress-chip"><strong>${fmtNum(sorted.length)}</strong> 模型</span>
+        <span class="catalog-progress-chip"><strong>${fmtNum(totalRequests)}</strong> 总请求</span>
+        <span class="catalog-progress-chip"><strong>${overallSuccessRate.toFixed(1)}%</strong> 总成功率</span>
+        <span class="catalog-progress-chip"><strong>${fmtNum(totalSuccess)}</strong> success</span>
+        <span class="catalog-progress-chip"><strong>${fmtNum(totalFailover)}</strong> failover</span>
+        <span class="catalog-progress-chip"><strong>${fmtNum(totalError)}</strong> error</span>
+      </div>
+      <div class="chart-sub" style="margin-top:10px">宽度固定在一张图里。横轴按请求量排序压缩显示，底部数字是排名序号；悬浮柱子查看具体模型和完整指标。</div>
+      <div class="model-metric-chart-shell">
+        <svg class="model-metric-chart-svg" width="100%" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet">
+          ${ticks.map(tick => `
+            <line class="model-metric-grid-line" x1="${leftPad}" y1="${tick.y}" x2="${svgWidth - rightPad}" y2="${tick.y}"></line>
+            <text class="model-metric-axis-label" x="${leftPad - 8}" y="${tick.y + 4}" text-anchor="end">${fmtNum(tick.value)}</text>
+          `).join('')}
+          <line class="model-metric-axis-line" x1="${leftPad}" y1="${topPad}" x2="${leftPad}" y2="${baseY}"></line>
+          <line class="model-metric-axis-line" x1="${leftPad}" y1="${baseY}" x2="${svgWidth - rightPad}" y2="${baseY}"></line>
+          <rect class="model-metric-focus" id="model-metric-focus" x="${leftPad}" y="${topPad}" width="0" height="${innerHeight}" opacity="0"></rect>
+          ${bars.map(bar => {
+            const successY = baseY - bar.successHeight;
+            const failoverY = successY - bar.failoverHeight;
+            const errorY = failoverY - bar.errorHeight;
+            const radius = Math.min(6, bar.width / 2).toFixed(2);
+            return `
+              ${bar.errorHeight > 0 ? `<rect class="model-metric-segment error" x="${bar.x.toFixed(2)}" y="${errorY.toFixed(2)}" width="${bar.width.toFixed(2)}" height="${bar.errorHeight.toFixed(2)}" rx="${radius}"></rect>` : ''}
+              ${bar.failoverHeight > 0 ? `<rect class="model-metric-segment failover" x="${bar.x.toFixed(2)}" y="${failoverY.toFixed(2)}" width="${bar.width.toFixed(2)}" height="${bar.failoverHeight.toFixed(2)}"></rect>` : ''}
+              ${bar.successHeight > 0 ? `<rect class="model-metric-segment success" x="${bar.x.toFixed(2)}" y="${successY.toFixed(2)}" width="${bar.width.toFixed(2)}" height="${bar.successHeight.toFixed(2)}" rx="${radius}"></rect>` : ''}
+              <rect class="model-metric-hit" data-index="${bar.index}" x="${(leftPad + bar.index * slotWidth).toFixed(2)}" y="${topPad}" width="${slotWidth.toFixed(2)}" height="${innerHeight}"></rect>
+              ${(bar.index % labelStep === 0 || bar.index === bars.length - 1) ? `<text class="model-metric-rank-label" x="${(bar.x + bar.width / 2).toFixed(2)}" y="${svgHeight - 16}" text-anchor="middle">${bar.index + 1}</text>` : ''}
+            `;
+          }).join('')}
+        </svg>
+        <div class="chart-tooltip" id="model-metric-tooltip"></div>
+      </div>
+      <div class="model-metric-legend">
+        <span class="model-metric-legend-item"><span class="model-metric-legend-swatch total"></span>柱高 = 请求量</span>
+        <span class="model-metric-legend-item"><span class="model-metric-legend-swatch success"></span>success</span>
+        <span class="model-metric-legend-item"><span class="model-metric-legend-swatch failover"></span>failover</span>
+        <span class="model-metric-legend-item"><span class="model-metric-legend-swatch error"></span>error</span>
+      </div>
+    </div>
+  `;
+
+  const shell = el.querySelector('.model-metric-chart-shell');
+  const tooltip = el.querySelector('#model-metric-tooltip');
+  const focus = el.querySelector('#model-metric-focus');
+  const hits = el.querySelectorAll('.model-metric-hit');
+  const showTooltip = (event, index) => {
+    const bar = bars[index];
+    if (!bar || !shell || !tooltip || !focus) return;
+    const item = bar.item || {};
+    tooltip.innerHTML = `
+      <div class="chart-tooltip-title">${escHtml(item.model || 'unknown')}</div>
+      <div class="chart-tooltip-meta">
+        排名 #${index + 1} · ${fmtNum(bar.total)} 次请求<br>
+        成功率 ${fmtPct(item.success_rate)} · 平均延迟 ${fmtLatency(item.avg_latency_ms)}<br>
+        ${fmtNum(item.success || 0)} success / ${fmtNum(item.failover || 0)} failover / ${fmtNum(item.error || 0)} error<br>
+        Provider ${fmtNum(item.provider_count || 0)} · 回退命中 ${fmtNum(item.fallback_hits || 0)} · 最近命中 ${escHtml(fmtAgo(item.last_seen))}
+      </div>
+    `;
+    focus.setAttribute('x', (leftPad + index * slotWidth).toFixed(2));
+    focus.setAttribute('y', String(topPad));
+    focus.setAttribute('width', slotWidth.toFixed(2));
+    focus.setAttribute('height', String(innerHeight));
+    focus.setAttribute('opacity', '1');
+    const shellRect = shell.getBoundingClientRect();
+    const offsetX = event.clientX - shellRect.left + 14;
+    const offsetY = event.clientY - shellRect.top - 18;
+    const maxLeft = Math.max(8, shellRect.width - 250);
+    tooltip.style.left = `${clamp(offsetX, 8, maxLeft)}px`;
+    tooltip.style.top = `${Math.max(offsetY, 8)}px`;
+    tooltip.classList.add('open');
+  };
+  hits.forEach(hit => {
+    const index = Number(hit.getAttribute('data-index') || 0);
+    hit.addEventListener('mouseenter', event => showTooltip(event, index));
+    hit.addEventListener('mousemove', event => showTooltip(event, index));
+  });
+  shell?.addEventListener('mouseleave', () => {
+    tooltip?.classList.remove('open');
+    focus?.setAttribute('opacity', '0');
+  });
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeModal();
+});
+
+nav('overview', document.querySelector('.nav-item[data-page="overview"]'));
+loadSidebarUsageModels(true);
+</script>
+</body>
+</html>

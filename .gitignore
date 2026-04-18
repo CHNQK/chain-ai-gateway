@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local runtime state
+gateway.log
+gateway.pid
+gateway.db
+gateway.db-shm
+gateway.db-wal
+gateway.db.bak*
+
+# Private local configuration
+config.yaml
+config.yaml.bak
+
+# Packaging artifacts
+releases/
+*.tar.gz
+*.sha256
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

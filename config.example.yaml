@@ -1,0 +1,20 @@
+circuit_breaker:
+  cooldown_seconds: 300
+
+default_model: free
+
+exclude_from_pool:
+  - nvidia/nemotron-nano-12b-v2-vl:free
+  - z-ai/glm-4.5-air:free
+
+providers:
+  openrouter_1:
+    api_key: sk-or-v1-your-key-here
+    base_url: https://openrouter.ai/api/v1
+    proxy: ''
+
+  # Add more keys if you want 429-only failover between different upstream API keys.
+  # openrouter_2:
+  #   api_key: sk-or-v1-your-second-key
+  #   base_url: https://openrouter.ai/api/v1
+  #   proxy: ''
