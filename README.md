@@ -14,45 +14,93 @@
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                              Downstream Clients                             │
-│                    OpenAI SDK / Apps / Agents / Tools                       │
+│                                  下游客户端                                  │
+│                     OpenAI SDK / 应用 / Agent / 工具                         │
 └───────────────────────────────────┬──────────────────────────────────────────┘
                                     │
                                     │  /v1/chat/completions
                                     │  /v1/models
                                     ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                            Chain-AI-Gateway                                 │
+│                             Chain-AI-Gateway                                │
 │                                                                              │
-│  Request Router               Failover Policy            Admin & Control      │
-│  - model passthrough          - only retry 429          - upstream sync      │
-│  - no fixed upstream model    - switch API key          - bulk model test    │
-│  - model not found =>         - other errors return     - report summary     │
-│    openrouter/free              directly to client      - live dashboard     │
+│  请求路由                   故障转移策略                管理与控制             │
+│  - 模型名直接透传          - 仅重试 429               - 上游模型同步          │
+│  - 不固定上游模型          - 切换到下一个 API key     - 全量模型测试          │
+│  - 模型不存在时回退        - 其他错误直接返回         - 测试报告汇总          │
+│    到 openrouter/free         给下游客户端             - 实时管理后台          │
 │                                                                              │
-│  Response Path                Persistence               Observability         │
-│  - OpenAI-compatible          - SQLite                  - request logs        │
-│  - stream + text              - test snapshots          - provider status     │
-│  - keep tool-call structure   - metrics                 - model metrics       │
+│  响应路径                   持久化存储                 可观测性               │
+│  - OpenAI 兼容              - SQLite                  - 请求日志             │
+│  - 流式 / 文本              - 测试快照                - Provider 状态        │
+│  - 保持 tool-call 结构      - 统计指标                - 模型指标评估         │
 └───────────────┬──────────────────────────┬──────────────────────┬────────────┘
                 │                          │                      │
                 │                          │                      │
                 ▼                          ▼                      ▼
      ┌───────────────────┐      ┌───────────────────┐   ┌────────────────────┐
-     │ Upstream Key Pool │      │   gateway.db      │   │   Admin Console    │
-     │ provider A / B... │      │ logs / metrics /  │   │ static/index.html  │
-     │ 429 => next key   │      │ reports / state   │   │ status / testing   │
+     │ 上游 Key 池        │      │   gateway.db      │   │    管理控制台       │
+     │ provider A / B... │      │ 日志 / 指标 /     │   │ static/index.html  │
+     │ 429 => 下一个 key │      │ 报告 / 运行状态   │   │ 状态 / 测试 / 报告 │
      └─────────┬─────────┘      └───────────────────┘   └────────────────────┘
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                    OpenRouter / OpenAI-compatible Upstreams                  │
+│                        OpenRouter / OpenAI 兼容上游                          │
 │                                                                              │
-│   requested model exists      => request same model                          │
-│   requested model not found   => route to openrouter/free                    │
-│   upstream returns 429        => fail over to next API key                   │
-│   upstream returns other err  => return error to downstream                  │
+│   请求模型存在        => 直接请求同名模型                                    │
+│   请求模型不存在      => 自动路由到 openrouter/free                          │
+│   上游返回 429        => 切换到下一个 API key                                │
+│   上游返回其他错误    => 直接返回给下游客户端                                 │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
+
+## 请求流转示例
+
+```text
+下游请求
+  │
+  │  model = some/model
+  ▼
+┌──────────────────────┐
+│  Chain-AI-Gateway    │
+└──────────┬───────────┘
+           │
+           ├─ 上游存在该模型
+           │    └─> 直接请求同名模型
+           │
+           ├─ 上游不存在该模型
+           │    └─> 回退到 openrouter/free
+           │
+           ├─ 返回 429
+           │    └─> 切换到下一个 API key
+           │
+           └─ 返回其他错误
+                └─> 直接返回给下游客户端
+```
+
+## Quick Start 摘要
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  1. 复制配置                                                │
+│     cp config.example.yaml config.yaml                      │
+│                                                             │
+│  2. 填入上游 API key                                        │
+│     providers.openrouter_x.api_key                          │
+│                                                             │
+│  3. 安装依赖                                                │
+│     python3 -m venv .venv                                   │
+│     source .venv/bin/activate                               │
+│     pip install -r requirements.txt                         │
+│                                                             │
+│  4. 启动网关                                                │
+│     python main.py                                          │
+│                                                             │
+│  5. 访问地址                                                │
+│     API   -> http://127.0.0.1:8088/v1                       │
+│     后台  -> http://127.0.0.1:8088/admin                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 核心特性
