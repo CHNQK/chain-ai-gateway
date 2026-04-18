@@ -10,6 +10,9 @@
 
 这个项目适合自建一个统一入口，把多个 OpenRouter / OpenAI-compatible 上游收敛成一个稳定的下游地址。
 
+当前版本：`v0.1.0`  
+Release Notes：[`CHANGELOG.md`](./CHANGELOG.md)
+
 ## 系统架构
 
 ```text
