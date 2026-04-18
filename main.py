@@ -1501,9 +1501,12 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                     last_usage = {}
                     stream_completed = False
                     stream_aborted_reason = ""
+                    yielded_any = False
+                    record_aborted = False
                     try:
                         async for chunk in resp.aiter_bytes():
                             raw_stream_chunks.append(chunk)
+                            yielded_any = True
                             yield chunk
                             try:
                                 for line in chunk.decode(errors="ignore").splitlines():
@@ -1525,9 +1528,18 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                         stream_completed = True
                     except asyncio.CancelledError:
                         stream_aborted_reason = "客户端中断了流式响应"
+                        record_aborted = True
                         raise
                     except GeneratorExit:
                         stream_aborted_reason = "客户端关闭了流式响应"
+                        record_aborted = True
+                        raise
+                    except Exception as e:
+                        stream_aborted_reason = f"上游流式响应中断: {e}"
+                        if yielded_any:
+                            record_aborted = True
+                            logger.warning(f"[STREAM_ABORTED] {endpoint.key} | {effective_model} | {stream_aborted_reason}")
+                            return
                         raise
                     finally:
                         reply = "".join(collected)
@@ -1542,7 +1554,7 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                                        completion_tokens=usage.get("completion_tokens", 0),
                                        response_body=raw_stream_body,
                                        upstream_response_body=raw_stream_body)
-                        else:
+                        elif record_aborted:
                             update_log(log_id, provider=endpoint.provider,
                                        api_key_hint=(provider_cfg["api_key"][:8]+"..."),
                                        model=effective_model, status="aborted", latency_ms=latency,
@@ -1557,7 +1569,9 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                 raise
             except Exception as e:
                 downstream_response_body = _error_response_body(str(e))
-                update_log(log_id, model=effective_model, status="error", reason=str(e),
+                update_log(log_id, provider=endpoint.provider,
+                           api_key_hint=(provider_cfg["api_key"][:8]+"..."),
+                           model=effective_model, status="error", reason=str(e),
                            response_body=downstream_response_body,
                            upstream_request_body=upstream_request_body)
                 raise HTTPException(status_code=502, detail=str(e))
@@ -1912,6 +1926,9 @@ async def chat_completions(request: Request):
                 yield first
                 async for chunk in rest:
                     yield chunk
+            except Exception as e:
+                logger.warning(f"[STREAM_CLOSE] downstream stream closed after first chunk: {e}")
+                return
             finally:
                 aclose = getattr(rest, "aclose", None)
                 if aclose is not None:
