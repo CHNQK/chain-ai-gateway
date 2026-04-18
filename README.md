@@ -1,5 +1,15 @@
 # Chain-AI-Gateway
 
+> OpenAI-compatible LLM gateway, OpenRouter proxy, model router, and self-hosted AI API gateway with 429-only failover, upstream model sync, tool-call-safe streaming, and admin UI.
+>
+> 面向 OpenAI 兼容客户端的多上游 AI 网关，支持按下游模型直连上游、`openrouter/free` 回退、`429` 级别 API key failover、上游模型同步和管理后台。
+
+[![GitHub tag](https://img.shields.io/github/v/tag/CHNQK/chain-ai-gateway?label=version)](https://github.com/CHNQK/chain-ai-gateway/tags)
+![OpenAI Compatible](https://img.shields.io/badge/OpenAI-Compatible-0f766e)
+![OpenRouter Proxy](https://img.shields.io/badge/OpenRouter-Proxy-c65a11)
+![FastAPI](https://img.shields.io/badge/FastAPI-Gateway-2563eb)
+![Tool Call Safe](https://img.shields.io/badge/Tool--Call-Safe%20Streaming-7c3aed)
+
 一个面向 OpenAI 兼容客户端的多上游网关，重点解决以下问题：
 
 - 下游传什么模型，就按什么模型向上游请求
@@ -12,6 +22,42 @@
 
 当前版本：`v0.1.0`  
 Release Notes：[`CHANGELOG.md`](./CHANGELOG.md)
+
+## 关键词 / Keywords
+
+如果有人在搜下面这些词，这个项目应该能被看见：
+
+- `OpenAI-compatible gateway`
+- `OpenAI API proxy`
+- `OpenRouter proxy`
+- `OpenRouter gateway`
+- `LLM gateway`
+- `AI gateway`
+- `model router`
+- `chat completions proxy`
+- `tool call streaming proxy`
+- `SSE tool call proxy`
+- `BYOK AI gateway`
+- `multi-provider LLM proxy`
+- `429 failover OpenRouter`
+- `OpenAI compatible admin panel`
+
+## 这项目适合谁 / Who Is This For
+
+- 想把多个 OpenRouter / OpenAI-compatible 上游收敛到一个统一入口的人
+- 想继续沿用 OpenAI SDK，只改 `base_url` 就接入的人
+- 想让下游模型名直接决定上游请求模型，而不是维护固定映射表的人
+- 想在免费模型或共享额度环境里做 `429` 级别 failover 的人
+- 想保留 tool call / SSE 结构，不希望中转层把工具调用降级成纯文本的人
+- 想要一个自带日志、状态页、模型测试和可用模型列表的 self-hosted gateway 的人
+
+## 用什么词可以找到它 / Search-Friendly Summary
+
+Chain-AI-Gateway is a self-hosted OpenAI-compatible API gateway for OpenRouter and other OpenAI-compatible upstreams.  
+It works as an OpenAI proxy, OpenRouter proxy, model router, and multi-provider LLM gateway, while preserving tool calls, handling `429` failover across upstream API keys, syncing upstream models to downstream clients, and exposing an admin dashboard for logs, status, testing, and reports.
+
+这不是一个只做“简单转发”的反向代理。  
+它更接近一个面向 Agent、工具调用、模型测试和多上游调度的 OpenAI-compatible AI gateway。
 
 ## 系统架构
 
@@ -134,6 +180,34 @@ Release Notes：[`CHANGELOG.md`](./CHANGELOG.md)
   - 上游模型目录
   - 可用模型列表
   - 批量测试与报告
+
+## 典型使用场景 / Common Use Cases
+
+- 作为 `OpenAI API proxy`
+  - 现有应用继续使用 OpenAI SDK，只替换 `base_url`
+- 作为 `OpenRouter proxy`
+  - 统一多个 OpenRouter key，对 `429` 做 key 级别 failover
+- 作为 `model router`
+  - 下游传什么模型，就请求什么模型；不存在时自动回退到 `openrouter/free`
+- 作为 `tool call safe streaming proxy`
+  - 保持流式响应中的 tool call 结构，不把结构化调用错误塞进 `content`
+- 作为 `self-hosted AI gateway`
+  - 带后台、日志、模型测试、可用模型列表和测试报告
+
+更多长尾场景和搜索词说明见：[docs/USE_CASES.md](./docs/USE_CASES.md)
+
+## 为什么不是简单反向代理 / Why Not Just A Reverse Proxy
+
+- 不是只转 HTTP
+  - 它会做模型存在性判断和 `openrouter/free` 兜底
+- 不是无脑重试
+  - 只对 `429` 在不同上游 API key/provider 间转移
+- 不是只看静态配置
+  - `/v1/models` 和后台模型目录会同步上游模型列表
+- 不是只做请求转发
+  - 它还包含日志、指标、批量模型测试、可用模型列表和测试报告
+- 不是把流式响应当纯文本
+  - 它关注 tool call / SSE 的结构完整性
 
 ## 当前路由规则
 
