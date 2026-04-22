@@ -1036,6 +1036,13 @@ def _build_upstream_request(endpoint: UpstreamEndpoint, body: dict, provider_cfg
     # Clean empty tool calls from request history
     cleaned_body = _clean_request_tool_calls(body)
     sanitized_messages = _sanitize_messages(cleaned_body.get("messages", []), keep_images=keep_images)
+
+    # Detect tool-call loop: if the last N tool results are identical errors, inject a hint
+    tool_results = [m.get("content","") for m in sanitized_messages if m.get("role") == "tool"]
+    if len(tool_results) >= 3 and len(set(tool_results[-3:])) == 1 and tool_results[-1]:
+        hint = {"role": "user", "content": f"[系统提示] 你已经连续 {len([x for x in tool_results[-6:] if x == tool_results[-1]])} 次收到相同的工具错误：「{str(tool_results[-1])[:120]}」。请停止重复，换一种方式解决问题，或告知用户你无法完成此操作。"}
+        sanitized_messages = sanitized_messages + [hint]
+        logger.warning(f"[LOOP_DETECT] Injected loop-break hint, repeated tool result: {str(tool_results[-1])[:80]}")
     
     is_agentic_cli = _is_agentic_cli_request(sanitized_messages)
     final_body = {**cleaned_body, "model": effective_model, "messages": sanitized_messages}
