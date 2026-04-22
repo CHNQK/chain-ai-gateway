@@ -664,6 +664,13 @@ a{color:inherit}
   color:#1f2937;
   word-break:break-word;
 }
+.available-model-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
 .mini-copy-btn{
   flex-shrink:0;
   border-radius:999px;
@@ -1700,6 +1707,10 @@ function fmtNum(num) {
   return String(n);
 }
 
+function fmtGroupedInt(num) {
+  return Math.max(0, Math.round(Number(num || 0))).toLocaleString('en-US');
+}
+
 function fmtPct(num) {
   return `${Number(num || 0).toFixed(1)}%`;
 }
@@ -1820,7 +1831,7 @@ function renderOverviewKpiDisplay(display) {
   };
   if (!totalEls.length || !successRateEls.length || !failuresEls.length || !providersAvailableEls.length || !providersTotalEls.length) return;
 
-  setText(totalEls, fmtNum(Math.max(0, Math.round(display.today_total || 0))));
+  setText(totalEls, fmtGroupedInt(display.today_total || 0));
   setText(successRateEls, `${Math.max(0, Number(display.today_success_rate || 0)).toFixed(1)}%`);
   setText(failuresEls, fmtNum(Math.max(0, Math.round(display.today_failures || 0))));
   setText(providersAvailableEls, String(Math.max(0, Math.round(display.providers_available || 0))));
@@ -2477,7 +2488,7 @@ function renderOverview(data) {
       key: 'today_total',
       tone: 'accent',
       label: '今日请求',
-      value: `<span class="kpi-value-inner" data-kpi-key="today_total">${fmtNum(today.total)}</span>`,
+      value: `<span class="kpi-value-inner" data-kpi-key="today_total">${fmtGroupedInt(today.total)}</span>`,
       note: `<span class="kpi-note-line"><span class="kpi-note-number" data-kpi-key="today_tokens">${fmtNum((today.total_prompt_tokens || 0) + (today.total_completion_tokens || 0))}</span> tokens · 📤 <span class="kpi-note-number" data-kpi-key="today_prompt_tokens">${fmtNum(today.total_prompt_tokens || 0)}</span> · 📥 <span class="kpi-note-number" data-kpi-key="today_completion_tokens">${fmtNum(today.total_completion_tokens || 0)}</span></span><span class="kpi-note-line">⚡ 📥 <span class="kpi-note-number" data-kpi-key="today_actual_tps">${Number(today.actual_tps || 0).toFixed(1)}</span> tok/s</span>`,
     },
     {
@@ -2748,7 +2759,9 @@ function renderAvailableModelRows(models) {
     list.map(model => `
       <div class="available-model-item">
         <div class="available-model-name mono" title="${escHtml(model)}">${escHtml(model)}</div>
-        <button class="mini-copy-btn" data-model="${encodeURIComponent(model)}" onclick="copyModelName(this.dataset.model)">复制</button>
+        <div class="available-model-actions">
+          <button class="mini-copy-btn" data-model="${encodeURIComponent(model)}" onclick="copyModelName(this.dataset.model)">复制</button>
+        </div>
       </div>
     `).join('')
   }</div>`;

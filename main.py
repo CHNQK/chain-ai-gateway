@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import time
 import uuid
 from contextlib import asynccontextmanager, suppress
@@ -52,7 +53,7 @@ CONFIG_PATH = os.environ.get("GATEWAY_CONFIG", os.path.join(BASE_DIR, "config.ya
 
 def load_config() -> dict:
     with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f) or {}
 
 
 scheduler: Scheduler = None
@@ -110,6 +111,7 @@ _models_cache = {"data": [], "ts": 0.0}
 _bulk_model_test_lock: asyncio.Lock = None
 _bulk_model_test_task: asyncio.Task | None = None
 _bulk_model_test_daily_task: asyncio.Task | None = None
+_config_update_lock: asyncio.Lock = None
 
 BULK_MODEL_TEST_TIMEOUT_SECONDS = max(10, int(os.environ.get("GATEWAY_BULK_MODEL_TEST_TIMEOUT_SECONDS", "180")))
 BULK_MODEL_TEST_CONCURRENCY = max(1, int(os.environ.get("GATEWAY_BULK_MODEL_TEST_CONCURRENCY", "3")))
@@ -120,8 +122,6 @@ BULK_MODEL_TEST_PROMPT = os.environ.get(
     "GATEWAY_BULK_MODEL_TEST_PROMPT",
     "你正在执行网关连通性测试。请直接回复一行文本：MODEL_TEST_OK。不要解释，不要 Markdown。",
 )
-
-
 def _new_bulk_model_test_state() -> dict:
     return {
         "run_id": "",
@@ -144,10 +144,61 @@ def _new_bulk_model_test_state() -> dict:
 _bulk_model_test = _new_bulk_model_test_state()
 
 
+def _normalize_proxy_url(proxy: str | None) -> str:
+    value = (proxy or "").strip()
+    if not value:
+        return ""
+    if "://" not in value:
+        return f"http://{value}"
+    return value
+
+
+async def _get_config_update_lock() -> asyncio.Lock:
+    global _config_update_lock
+    if _config_update_lock is None:
+        _config_update_lock = asyncio.Lock()
+    return _config_update_lock
+
+
+async def _write_live_config(cfg: dict) -> dict:
+    config_dir = os.path.dirname(os.path.abspath(CONFIG_PATH)) or "."
+    fd, temp_path = tempfile.mkstemp(prefix=".config.", suffix=".yaml", dir=config_dir)
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, CONFIG_PATH)
+    finally:
+        with suppress(FileNotFoundError):
+            os.unlink(temp_path)
+    if scheduler:
+        scheduler.reload(cfg)
+    return cfg
+
+
+def _proxy_for_requested_model(requested_model: str, provider_cfg: dict, proxy_override: str | None = None) -> str:
+    if proxy_override:
+        return _normalize_proxy_url(proxy_override)
+    return _normalize_proxy_url(provider_cfg.get("proxy", ""))
+
+
+def _payload_text(payload) -> str:
+    if payload is None:
+        return ""
+    if isinstance(payload, (dict, list)):
+        try:
+            return json.dumps(payload, ensure_ascii=False)
+        except Exception:
+            return str(payload)
+    return str(payload)
+
+
 async def get_client(proxy: str = None) -> httpx.AsyncClient:
     global _client_lock
     if _client_lock is None:
         _client_lock = asyncio.Lock()
+    proxy = _normalize_proxy_url(proxy)
     key = proxy if proxy else None
     if key not in _clients or _clients[key].is_closed:
         async with _client_lock:
@@ -502,6 +553,24 @@ def _top_items_from_counter(counter: dict[str, int], limit: int = 5) -> list[dic
 def _chunk_items(items: list[str], size: int = 8) -> list[list[str]]:
     size = max(1, int(size or 8))
     return [items[idx:idx + size] for idx in range(0, len(items), size)]
+
+
+def _list_models_from_latest_completed_report(limit: int = 10) -> list[str] | None:
+    page = get_bulk_test_report_page(limit=max(1, min(int(limit or 10), 20)), page=1)
+    for item in page.get("items") or []:
+        if float(item.get("finished_at") or 0) <= 0:
+            continue
+        stats = item.get("stats") or {}
+        models = []
+        seen = set()
+        for model in stats.get("available_models") or []:
+            normalized = _normalize_model_name(model)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            models.append(normalized)
+        return models
+    return None
 
 
 def _build_bulk_model_test_overview(snapshot: dict) -> dict:
@@ -1245,6 +1314,7 @@ async def _forward_non_stream(
     record_log: bool = True,
     trace: dict | None = None,
     mutate_scheduler: bool = True,
+    proxy_override: str | None = None,
 ) -> dict:
     last_error = None
     last_status = 429
@@ -1260,8 +1330,9 @@ async def _forward_non_stream(
             provider_cfg = scheduler.get_provider_config(endpoint.provider)
             if not provider_cfg:
                 continue
-            client = await get_client(provider_cfg.get("proxy"))
             effective_model = _effective_upstream_model(endpoint, upstream_model)
+            request_proxy = _proxy_for_requested_model(requested_model or effective_model, provider_cfg, proxy_override=proxy_override)
+            client = await get_client(request_proxy)
             _body = await _maybe_compress(body, provider_cfg, effective_model)
             url, headers, payload, effective_model = _build_upstream_request(endpoint, _body, provider_cfg, upstream_model)
             upstream_request_body = json.dumps(payload, ensure_ascii=False)
@@ -1285,6 +1356,7 @@ async def _forward_non_stream(
                         "provider": endpoint.provider,
                         "api_key_hint": provider_cfg["api_key"][:8]+"...",
                         "model": effective_model,
+                        "proxy": request_proxy,
                         "status": "success",
                         "reason": "",
                         "latency_ms": latency,
@@ -1311,7 +1383,8 @@ async def _forward_non_stream(
                     _record_forward_trace(trace, provider=endpoint.provider,
                                           api_key_hint=provider_cfg["api_key"][:8]+"...",
                                           model=effective_model, status="failover",
-                                          reason=reason, latency_ms=latency)
+                                          reason=reason, latency_ms=latency,
+                                          proxy=request_proxy, error_text=_payload_text(error_payload))
                     if record_log:
                         log_request(virtual_model=attempt_virtual_model, requested_model=requested_model,
                                     provider=endpoint.provider, api_key=provider_cfg["api_key"],
@@ -1328,7 +1401,8 @@ async def _forward_non_stream(
                     _record_forward_trace(trace, provider=endpoint.provider,
                                           api_key_hint=provider_cfg["api_key"][:8]+"...",
                                           model=effective_model, status="failover",
-                                          reason=reason, latency_ms=latency)
+                                          reason=reason, latency_ms=latency,
+                                          proxy=request_proxy, error_text=_payload_text(error_payload))
                     if record_log:
                         log_request(virtual_model=attempt_virtual_model, requested_model=requested_model,
                                     provider=endpoint.provider, api_key=provider_cfg["api_key"],
@@ -1347,7 +1421,8 @@ async def _forward_non_stream(
                 _record_forward_trace(trace, provider=endpoint.provider,
                                       api_key_hint=provider_cfg["api_key"][:8]+"...",
                                       model=effective_model, status="error", reason=reason,
-                                      latency_ms=latency)
+                                      latency_ms=latency, proxy=request_proxy,
+                                      error_text=_payload_text(error_payload))
                 if record_log and log_id:
                     update_log(log_id, provider=endpoint.provider,
                                api_key_hint=(provider_cfg["api_key"][:8]+"..."),
@@ -1361,7 +1436,8 @@ async def _forward_non_stream(
                 downstream_response_body = _error_response_body(str(e))
                 _record_forward_trace(trace, provider=endpoint.provider,
                                       api_key_hint=provider_cfg["api_key"][:8]+"...",
-                                      model=effective_model, status="error", reason=str(e))
+                                      model=effective_model, status="error", reason=str(e),
+                                      proxy=request_proxy)
                 if record_log and log_id:
                     update_log(log_id, provider=endpoint.provider,
                                api_key_hint=(provider_cfg["api_key"][:8]+"..."),
@@ -1378,7 +1454,7 @@ async def _forward_non_stream(
     raise HTTPException(status_code=last_status, detail=last_error or "All upstreams failed")
 
 
-async def _forward_stream(virtual_model: str, body: dict, requested_model: str = "", log_id: int = 0, request_id: str = "", model_attempts: list[str | None] | None = None) -> AsyncGenerator[bytes, None]:
+async def _forward_stream(virtual_model: str, body: dict, requested_model: str = "", log_id: int = 0, request_id: str = "", model_attempts: list[str | None] | None = None, proxy_override: str | None = None) -> AsyncGenerator[bytes, None]:
     last_error = "All upstreams failed"
     last_status = 429
     attempts = model_attempts or [None]
@@ -1393,8 +1469,9 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
             provider_cfg = scheduler.get_provider_config(endpoint.provider)
             if not provider_cfg:
                 continue
-            client = await get_client(provider_cfg.get("proxy"))
             effective_model = _effective_upstream_model(endpoint, upstream_model)
+            request_proxy = _proxy_for_requested_model(requested_model or effective_model, provider_cfg, proxy_override=proxy_override)
+            client = await get_client(request_proxy)
             _body = await _maybe_compress(body, provider_cfg, effective_model)
             url, headers, payload, effective_model = _build_upstream_request(endpoint, _body, provider_cfg, upstream_model)
             upstream_request_body = json.dumps(payload, ensure_ascii=False)
@@ -1627,7 +1704,6 @@ async def _run_single_bulk_model_test(model: str) -> dict:
     default_model = _normalize_model_name((scheduler._config or {}).get("default_model", ""))
     virtual_model, dynamic_route = _resolve_virtual_model(model, default_model)
     model_attempts = _build_model_attempts(model, dynamic_route)
-    trace: dict = {}
     await _set_bulk_model_test_result(
         model,
         status="running",
@@ -1637,67 +1713,23 @@ async def _run_single_bulk_model_test(model: str) -> dict:
         reason="",
         reply_preview="",
     )
-    try:
-        data = await asyncio.wait_for(
-            _forward_non_stream(
-                virtual_model,
-                body,
-                requested_model=model,
-                request_id=request_id,
-                model_attempts=model_attempts,
-                record_log=False,
-                trace=trace,
-                mutate_scheduler=False,
-            ),
-            timeout=BULK_MODEL_TEST_TIMEOUT_SECONDS,
-        )
+    def _attempt_counts(local_trace: dict) -> tuple[int, int]:
+        attempts = local_trace.get("attempts") or []
+        return len(attempts), sum(1 for item in attempts if item.get("status") == "failover")
+
+    def _build_success_result(data: dict, local_trace: dict, *, note: str = "", proxy_used: str = "") -> dict:
         has_reply, reply_preview = _extract_bulk_test_reply(data)
-        final = trace.get("final") or {}
+        final = local_trace.get("final") or {}
         effective_model = _normalize_model_name(final.get("model", ""))
         response_model = _normalize_model_name(data.get("model", ""))
-        finish_reason = ""
         try:
             finish_reason = data["choices"][0].get("finish_reason", "") or ""
         except Exception:
             finish_reason = ""
-        if effective_model and effective_model != model:
-            reason = f"请求 {model} 时实际命中 {effective_model}，已触发回退"
-            return {
-                "status": "error",
-                "reason": reason,
-                "reply_preview": reply_preview[:240],
-                "provider": final.get("provider", ""),
-                "effective_model": effective_model,
-                "response_model": response_model,
-                "latency_ms": int(final.get("latency_ms") or 0),
-                "prompt_tokens": int(final.get("prompt_tokens") or 0),
-                "completion_tokens": int(final.get("completion_tokens") or 0),
-                "attempt_count": len(trace.get("attempts") or []),
-                "failover_count": sum(1 for item in (trace.get("attempts") or []) if item.get("status") == "failover"),
-                "started_at": started_at,
-                "finished_at": time.time(),
-                "finish_reason": finish_reason,
-            }
-        if not has_reply:
-            return {
-                "status": "error",
-                "reason": "模型返回为空",
-                "reply_preview": "",
-                "provider": final.get("provider", ""),
-                "effective_model": effective_model or model,
-                "response_model": response_model,
-                "latency_ms": int(final.get("latency_ms") or 0),
-                "prompt_tokens": int(final.get("prompt_tokens") or 0),
-                "completion_tokens": int(final.get("completion_tokens") or 0),
-                "attempt_count": len(trace.get("attempts") or []),
-                "failover_count": sum(1 for item in (trace.get("attempts") or []) if item.get("status") == "failover"),
-                "started_at": started_at,
-                "finished_at": time.time(),
-                "finish_reason": finish_reason,
-            }
-        return {
+        attempt_count, failover_count = _attempt_counts(local_trace)
+        result = {
             "status": "success",
-            "reason": "",
+            "reason": note,
             "reply_preview": reply_preview[:240],
             "provider": final.get("provider", ""),
             "effective_model": effective_model or model,
@@ -1705,34 +1737,30 @@ async def _run_single_bulk_model_test(model: str) -> dict:
             "latency_ms": int(final.get("latency_ms") or 0),
             "prompt_tokens": int(final.get("prompt_tokens") or 0),
             "completion_tokens": int(final.get("completion_tokens") or 0),
-            "attempt_count": len(trace.get("attempts") or []),
-            "failover_count": sum(1 for item in (trace.get("attempts") or []) if item.get("status") == "failover"),
+            "attempt_count": attempt_count,
+            "failover_count": failover_count,
             "started_at": started_at,
             "finished_at": time.time(),
             "finish_reason": finish_reason,
+            "proxy_used": proxy_used,
+            "proxy_retry": bool(proxy_used),
         }
-    except asyncio.TimeoutError:
+        if effective_model and effective_model != model:
+            result["status"] = "error"
+            result["reason"] = f"请求 {model} 时实际命中 {effective_model}，已触发回退"
+            return result
+        if not has_reply:
+            result["status"] = "error"
+            result["reason"] = "模型返回为空"
+            result["reply_preview"] = ""
+        return result
+
+    def _build_error_result(reason: str, local_trace: dict, *, proxy_used: str = "", proxy_retry: bool = False) -> dict:
+        final = local_trace.get("last") or {}
+        attempt_count, failover_count = _attempt_counts(local_trace)
         return {
             "status": "error",
-            "reason": f"模型测试超时 {BULK_MODEL_TEST_TIMEOUT_SECONDS}s",
-            "reply_preview": "",
-            "provider": "",
-            "effective_model": "",
-            "response_model": "",
-            "latency_ms": BULK_MODEL_TEST_TIMEOUT_SECONDS * 1000,
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "attempt_count": len(trace.get("attempts") or []),
-            "failover_count": sum(1 for item in (trace.get("attempts") or []) if item.get("status") == "failover"),
-            "started_at": started_at,
-            "finished_at": time.time(),
-            "finish_reason": "",
-        }
-    except HTTPException as exc:
-        final = trace.get("last") or {}
-        return {
-            "status": "error",
-            "reason": str(exc.detail or exc.status_code),
+            "reason": reason,
             "reply_preview": "",
             "provider": final.get("provider", ""),
             "effective_model": final.get("model", ""),
@@ -1740,30 +1768,69 @@ async def _run_single_bulk_model_test(model: str) -> dict:
             "latency_ms": int(final.get("latency_ms") or 0),
             "prompt_tokens": int(final.get("prompt_tokens") or 0),
             "completion_tokens": int(final.get("completion_tokens") or 0),
-            "attempt_count": len(trace.get("attempts") or []),
-            "failover_count": sum(1 for item in (trace.get("attempts") or []) if item.get("status") == "failover"),
+            "attempt_count": attempt_count,
+            "failover_count": failover_count,
             "started_at": started_at,
             "finished_at": time.time(),
             "finish_reason": "",
+            "proxy_used": proxy_used,
+            "proxy_retry": proxy_retry,
         }
-    except Exception as e:
-        final = trace.get("last") or {}
-        return {
-            "status": "error",
-            "reason": str(e),
-            "reply_preview": "",
-            "provider": final.get("provider", ""),
-            "effective_model": final.get("model", ""),
-            "response_model": "",
-            "latency_ms": int(final.get("latency_ms") or 0),
-            "prompt_tokens": int(final.get("prompt_tokens") or 0),
-            "completion_tokens": int(final.get("completion_tokens") or 0),
-            "attempt_count": len(trace.get("attempts") or []),
-            "failover_count": sum(1 for item in (trace.get("attempts") or []) if item.get("status") == "failover"),
-            "started_at": started_at,
-            "finished_at": time.time(),
-            "finish_reason": "",
-        }
+
+    async def _attempt_request(proxy_override: str | None = None) -> dict:
+        local_trace: dict = {}
+        normalized_proxy = _normalize_proxy_url(proxy_override)
+        try:
+            data = await asyncio.wait_for(
+                _forward_non_stream(
+                    virtual_model,
+                    body,
+                    requested_model=model,
+                    request_id=request_id,
+                    model_attempts=model_attempts,
+                    record_log=False,
+                    trace=local_trace,
+                    mutate_scheduler=False,
+                    proxy_override=normalized_proxy,
+                ),
+                timeout=BULK_MODEL_TEST_TIMEOUT_SECONDS,
+            )
+            return {"ok": True, "data": data, "trace": local_trace, "proxy": normalized_proxy}
+        except asyncio.TimeoutError:
+            return {
+                "ok": False,
+                "status_code": 0,
+                "reason": f"模型测试超时 {BULK_MODEL_TEST_TIMEOUT_SECONDS}s",
+                "trace": local_trace,
+                "proxy": normalized_proxy,
+            }
+        except HTTPException as exc:
+            return {
+                "ok": False,
+                "status_code": int(exc.status_code or 0),
+                "reason": str(exc.detail or exc.status_code),
+                "trace": local_trace,
+                "proxy": normalized_proxy,
+            }
+        except Exception as e:
+            return {
+                "ok": False,
+                "status_code": 0,
+                "reason": str(e),
+                "trace": local_trace,
+                "proxy": normalized_proxy,
+            }
+
+    first_attempt = await _attempt_request()
+    if first_attempt.get("ok"):
+        return _build_success_result(first_attempt["data"], first_attempt["trace"])
+
+    return _build_error_result(
+        str(first_attempt.get("reason") or "模型测试失败"),
+        first_attempt.get("trace") or {},
+        proxy_used=str(first_attempt.get("proxy") or ""),
+        proxy_retry=bool(first_attempt.get("proxy")),
+    )
 
 
 async def _run_bulk_model_tests(models: list[str], trigger: str, refresh: bool):
@@ -1943,15 +2010,19 @@ async def chat_completions(request: Request):
 
 @app.get("/v1/models")
 async def list_models(refresh: bool = False):
-    upstream_models = await _list_upstream_models(force_refresh=refresh)
-    explicit_virtual_models = list(((scheduler._config or {}).get("virtual_models", {}) or {}).keys()) if scheduler else []
-    model_ids = upstream_models or []
-    if not model_ids:
-        model_ids = explicit_virtual_models or scheduler.list_virtual_models()
+    tested_models = _list_models_from_latest_completed_report()
+    if tested_models is not None:
+        model_ids = tested_models
     else:
-        for virtual_model in explicit_virtual_models:
-            model_ids.append(virtual_model)
-        model_ids = sorted(set(model_ids))
+        upstream_models = await _list_upstream_models(force_refresh=refresh)
+        explicit_virtual_models = list(((scheduler._config or {}).get("virtual_models", {}) or {}).keys()) if scheduler else []
+        model_ids = upstream_models or []
+        if not model_ids:
+            model_ids = explicit_virtual_models or scheduler.list_virtual_models()
+        else:
+            for virtual_model in explicit_virtual_models:
+                model_ids.append(virtual_model)
+            model_ids = sorted(set(model_ids))
     return {"object": "list", "data": [
         {"id": m, "object": "model", "owned_by": "chain-ai-gateway"}
         for m in model_ids
