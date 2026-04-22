@@ -2195,6 +2195,26 @@ def _collect_provider_live_status() -> dict[str, dict]:
     return providers
 
 
+@app.get("/admin/api/system")
+async def admin_system():
+    import psutil
+    cpu_pct = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    log_path = os.path.join(BASE_DIR, "gateway.log")
+    log_size_mb = round(os.path.getsize(log_path) / 1024**2, 1) if os.path.exists(log_path) else 0
+    return {
+        "cpu_pct": round(cpu_pct, 1),
+        "mem_used_gb": round(mem.used / 1024**3, 1),
+        "mem_total_gb": round(mem.total / 1024**3, 1),
+        "mem_pct": round(mem.percent, 1),
+        "disk_used_gb": round(disk.used / 1024**3, 1),
+        "disk_total_gb": round(disk.total / 1024**3, 1),
+        "disk_pct": round(disk.percent, 1),
+        "log_size_mb": log_size_mb,
+    }
+
+
 @app.get("/admin/api/overview")
 async def admin_overview():
     now_ts = time.time()
@@ -2206,6 +2226,9 @@ async def admin_overview():
     import psutil
     cpu_pct = psutil.cpu_percent(interval=0.1)
     mem = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    log_path = os.path.join(BASE_DIR, "gateway.log")
+    log_size_mb = round(os.path.getsize(log_path) / 1024**2, 1) if os.path.exists(log_path) else 0
     return {
         "today": {
             **today,
@@ -2223,6 +2246,10 @@ async def admin_overview():
             "mem_used_gb": round(mem.used / 1024**3, 1),
             "mem_total_gb": round(mem.total / 1024**3, 1),
             "mem_pct": round(mem.percent, 1),
+            "disk_used_gb": round(disk.used / 1024**3, 1),
+            "disk_total_gb": round(disk.total / 1024**3, 1),
+            "disk_pct": round(disk.percent, 1),
+            "log_size_mb": log_size_mb,
         },
     }
 

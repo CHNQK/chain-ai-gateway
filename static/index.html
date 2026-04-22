@@ -2449,6 +2449,7 @@ function nav(page, button) {
   clearTimers();
   if (page === 'chat') state.timers[page] = window.setInterval(() => loadSidebarUsageModels(true), 30000);
   if (page === 'overview') state.timers[page] = window.setInterval(loadOverview, 30000);
+  if (page === 'overview') state.timers['system'] = window.setInterval(refreshSystemKpi, 1000);
   if (page === 'logs') state.timers[page] = window.setInterval(loadLogs, 8000);
   if (page === 'upstreams') state.timers[page] = window.setInterval(loadStatus, 15000);
 }
@@ -2458,6 +2459,22 @@ function refreshCurrent() {
   if (state.page === 'overview') return loadOverview();
   if (state.page === 'logs') return loadLogs();
   if (state.page === 'upstreams') return loadStatus(true);
+}
+
+async function refreshSystemKpi() {
+  try {
+    const s = await fetchJson('/admin/api/system');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('sys-cpu', s.cpu_pct + '%');
+    set('sys-cpu2', s.cpu_pct);
+    set('sys-mem', s.mem_pct + '%');
+    set('sys-mem2', s.mem_used_gb);
+    set('sys-mem-total', s.mem_total_gb);
+    set('sys-disk', s.disk_used_gb);
+    set('sys-disk-total', s.disk_total_gb);
+    set('sys-disk-pct', s.disk_pct);
+    set('sys-log', s.log_size_mb);
+  } catch {}
 }
 
 async function loadOverview() {
@@ -2517,8 +2534,8 @@ function renderOverview(data) {
       key: 'system',
       tone: '',
       label: '系统资源',
-      value: `<span class="kpi-value-split" style="font-size:22px"><span title="CPU">${sys.cpu_pct ?? '--'}%</span><span style="margin:0 6px;opacity:.3">·</span><span title="内存">${sys.mem_pct ?? '--'}%</span></span>`,
-      note: `<span class="kpi-note-line">🖥 CPU ${sys.cpu_pct ?? '--'}% &nbsp;·&nbsp; 🧠 内存 ${sys.mem_used_gb ?? '--'} / ${sys.mem_total_gb ?? '--'} GB</span>`,
+      value: `<span class="kpi-value-split" style="font-size:22px"><span id="sys-cpu" title="CPU">${sys.cpu_pct ?? '--'}%</span><span style="margin:0 6px;opacity:.3">·</span><span id="sys-mem" title="内存">${sys.mem_pct ?? '--'}%</span></span>`,
+      note: `<span class="kpi-note-line">🖥 CPU <span id="sys-cpu2">${sys.cpu_pct ?? '--'}</span>% &nbsp;·&nbsp; 🧠 内存 <span id="sys-mem2">${sys.mem_used_gb ?? '--'}</span>/<span id="sys-mem-total">${sys.mem_total_gb ?? '--'}</span> GB</span><span class="kpi-note-line">💾 磁盘 <span id="sys-disk">${sys.disk_used_gb ?? '--'}</span>/<span id="sys-disk-total">${sys.disk_total_gb ?? '--'}</span> GB (<span id="sys-disk-pct">${sys.disk_pct ?? '--'}</span>%) &nbsp;·&nbsp; 📄 日志 <span id="sys-log">${sys.log_size_mb ?? '--'}</span> MB</span>`,
     },
   ].map(item => `
     <div class="kpi-card ${item.tone}">
