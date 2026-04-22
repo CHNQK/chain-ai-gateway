@@ -1037,13 +1037,13 @@ def _build_upstream_request(endpoint: UpstreamEndpoint, body: dict, provider_cfg
     cleaned_body = _clean_request_tool_calls(body)
     sanitized_messages = _sanitize_messages(cleaned_body.get("messages", []), keep_images=keep_images)
     
-    # Force upstream non-stream for agentic CLI prompts so we can normalize
-    # tool-call formatting and strip leaked planning/tool traces before returning.
-    is_agentic_cli = TRACE_FILTER_ENABLED and _is_agentic_cli_request(sanitized_messages)
+    # Force upstream non-stream for tool-capable/agentic requests so we can
+    # repair malformed tool calls before replaying a clean SSE stream.
+    is_agentic_cli = _is_agentic_cli_request(sanitized_messages)
     final_body = {**cleaned_body, "model": effective_model, "messages": sanitized_messages}
-    if is_agentic_cli and final_body.get("stream", False):
+    if final_body.get("stream", False) and _should_normalize_tool_call_response(final_body, sanitized_messages):
         final_body["stream"] = False
-        logger.info("[AGENTIC] Forcing upstream stream=False to normalize tool traces")
+        logger.info("[TOOL_CALL_FIX] Forcing upstream stream=False to normalize tool-call formatting")
     
     return url, headers, final_body, effective_model
 
@@ -1058,6 +1058,7 @@ def _is_permanent_failure(status: int) -> bool:
 AGENTIC_PROMPT_HINTS = (
     "Hermes Agent",
     "You are Droid",
+    "You are OpenWork",
     "interactive cli tool",
     "AskUser tool",
     "software engineering agent",
@@ -1074,6 +1075,20 @@ def _is_agentic_cli_request(messages: list[dict]) -> bool:
         if any(hint.lower() in lower for hint in AGENTIC_PROMPT_HINTS):
             return True
     return False
+
+
+def _request_has_tool_support(body: dict) -> bool:
+    tools = body.get("tools")
+    functions = body.get("functions")
+    return bool(tools) or bool(functions) or body.get("tool_choice") is not None
+
+
+def _should_normalize_tool_call_response(body: dict, messages: list[dict] | None = None) -> bool:
+    if _request_has_tool_support(body):
+        return True
+    if messages is None:
+        messages = body.get("messages", [])
+    return _is_agentic_cli_request(messages)
 
 
 def _find_trace_start(text: str) -> int:
@@ -1191,10 +1206,63 @@ def _completion_to_sse_chunks(data: dict) -> list[bytes]:
     return chunks
 
 
+def _serialize_tool_arguments(arguments) -> str:
+    if arguments is None:
+        return "{}"
+    if isinstance(arguments, str):
+        stripped = arguments.strip()
+        if not stripped:
+            return "{}"
+        try:
+            json.loads(stripped)
+            return stripped
+        except json.JSONDecodeError:
+            return json.dumps({"input": arguments}, ensure_ascii=False)
+    return json.dumps(arguments, ensure_ascii=False)
+
+
+def _parse_text_tool_call(content: str) -> tuple[str | None, object, str]:
+    if not isinstance(content, str) or not content.strip():
+        return None, None, content
+
+    decoder = json.JSONDecoder()
+
+    bracket_match = re.search(r"(?is)\[Tool call:\s*([^\]\n]+)\]", content)
+    if bracket_match:
+        func_name = bracket_match.group(1).strip()
+        trailing = content[bracket_match.end():].lstrip()
+        try:
+            args_obj, consumed = decoder.raw_decode(trailing)
+        except json.JSONDecodeError:
+            pass
+        else:
+            clean_content = (content[:bracket_match.start()] + trailing[consumed:]).strip()
+            return func_name, args_obj, clean_content
+
+    tag_match = re.search(r"(?is)<tool_call>\s*(\{.*?\})\s*</tool_call>", content)
+    if not tag_match:
+        return None, None, content
+    try:
+        payload = json.loads(tag_match.group(1))
+    except json.JSONDecodeError:
+        return None, None, content
+    if not isinstance(payload, dict):
+        return None, None, content
+
+    function_payload = payload.get("function") if isinstance(payload.get("function"), dict) else {}
+    func_name = payload.get("name") or function_payload.get("name")
+    arguments = payload.get("arguments", function_payload.get("arguments"))
+    clean_content = (content[:tag_match.start()] + content[tag_match.end():]).strip()
+    if isinstance(func_name, str):
+        func_name = func_name.strip()
+    return func_name or None, arguments, clean_content
+
+
 def fix_tool_call_format(data: dict, original_body: dict) -> dict:
     """Fix models that output tool calls as text instead of proper tool_calls format.
     
     Detects content like: [Tool call: terminal] {"command":"echo hello"}
+    or <tool_call>{"name":"write","arguments":{...}}</tool_call>
     and converts it to proper tool_calls array.
     """
     try:
@@ -1210,47 +1278,30 @@ def fix_tool_call_format(data: dict, original_body: dict) -> dict:
         if existing_tool_calls and isinstance(existing_tool_calls, list) and len(existing_tool_calls) > 0:
             return data
         
-        # Check if finish_reason is "stop" but content looks like a tool call
         finish_reason = choice.get("finish_reason", "")
         if finish_reason != "stop":
             return data
-        
-        # Pattern: [Tool call: funcname] {...json...}
-        pattern = r'\[Tool call:\s*(\w+)\]\s*(\{.*\})'
-        match = re.search(pattern, content, re.DOTALL)
-        if not match:
+
+        func_name, args_payload, clean_content = _parse_text_tool_call(content)
+        if not func_name:
             return data
-        
-        func_name = match.group(1)
-        args_str = match.group(2)
-        
-        # Try to parse args as JSON
-        try:
-            args = json.loads(args_str)
-        except json.JSONDecodeError:
-            return data
-        
-        # Extract non-content text (if model also wrote explanation)
-        clean_content = re.sub(pattern, '', content).strip()
-        
-        # Build proper tool_calls
+
         call_id = f"call_{uuid.uuid4().hex[:24]}"
         tool_calls = [{
             "id": call_id,
             "type": "function",
             "function": {
                 "name": func_name,
-                "arguments": json.dumps(args, ensure_ascii=False)
+                "arguments": _serialize_tool_arguments(args_payload)
             }
         }]
-        
+
         logger.info(f"[TOOL_CALL_FIX] Converted content tool call: {func_name}")
-        
-        # Modify the response in place
+
         message["content"] = clean_content if clean_content else None
         message["tool_calls"] = tool_calls
         choice["finish_reason"] = "tool_calls"
-        
+
         return data
     except Exception as e:
         logger.warning(f"[TOOL_CALL_FIX] Failed to fix tool call format: {e}")
@@ -1290,6 +1341,15 @@ def clean_empty_tool_calls(data: dict) -> dict:
     except Exception as e:
         logger.warning(f"[CLEAN_TC] Failed to clean tool calls: {e}")
         return data
+
+
+def _normalize_completion_data(data: dict, original_body: dict) -> dict:
+    data = clean_empty_tool_calls(data)
+    if _should_normalize_tool_call_response(original_body):
+        data = fix_tool_call_format(data, original_body)
+    if TRACE_FILTER_ENABLED and _is_agentic_cli_request(original_body.get("messages", [])):
+        data = _sanitize_completion_response(data)
+    return data
 
 
 def _record_forward_trace(trace: dict | None, **entry):
@@ -1345,10 +1405,7 @@ async def _forward_non_stream(
                 raw_upstream_response = resp.text
                 if resp.status_code == 200:
                     data = resp.json()
-                    if TRACE_FILTER_ENABLED:
-                        data = clean_empty_tool_calls(data)
-                        data = fix_tool_call_format(data, body)
-                        data = _sanitize_completion_response(data)
+                    data = _normalize_completion_data(data, body)
                     usage = data.get("usage", {})
                     reply = _extract_reply_text(data)
                     downstream_response_body = JSONResponse(content=data).body.decode(errors="ignore")
@@ -1484,10 +1541,7 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                     raw_upstream_response = resp.text
                     if resp.status_code == 200:
                         data = resp.json()
-                        if TRACE_FILTER_ENABLED:
-                            data = clean_empty_tool_calls(data)
-                            data = fix_tool_call_format(data, body)
-                            data = _sanitize_completion_response(data)
+                        data = _normalize_completion_data(data, body)
                         usage = data.get("usage", {})
                         reply = _extract_reply_text(data)
                         downstream_chunks = _completion_to_sse_chunks(data)
