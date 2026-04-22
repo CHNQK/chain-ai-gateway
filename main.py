@@ -1640,6 +1640,7 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                     collected = []
                     raw_stream_chunks = []
                     last_usage = {}
+                    last_finish_reason = ""
                     stream_completed = False
                     stream_aborted_reason = ""
                     yielded_any = False
@@ -1668,12 +1669,17 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                                         c = choices[0].get("delta", {}).get("content") or ""
                                         if c:
                                             collected.append(c)
+                                        if choices[0].get("finish_reason") == "tool_calls":
+                                            last_finish_reason = "tool_calls"
+                                        if choices[0].get("delta", {}).get("tool_calls"):
+                                            last_finish_reason = "tool_calls"
                             except Exception:
                                 pass
                         # After stream ends, check for text tool_call and inject fix
+                        # Only if the model did NOT already send proper tool_calls
                         full_content = "".join(collected)
                         func_name, args_payload, _ = _parse_text_tool_call(full_content)
-                        if func_name:
+                        if func_name and last_finish_reason != "tool_calls":
                             call_id = f"call_{uuid.uuid4().hex[:24]}"
                             fix_chunk = {
                                 "choices": [{
