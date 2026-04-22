@@ -1037,13 +1037,8 @@ def _build_upstream_request(endpoint: UpstreamEndpoint, body: dict, provider_cfg
     cleaned_body = _clean_request_tool_calls(body)
     sanitized_messages = _sanitize_messages(cleaned_body.get("messages", []), keep_images=keep_images)
     
-    # Force upstream non-stream for tool-capable/agentic requests so we can
-    # repair malformed tool calls before replaying a clean SSE stream.
     is_agentic_cli = _is_agentic_cli_request(sanitized_messages)
     final_body = {**cleaned_body, "model": effective_model, "messages": sanitized_messages}
-    if final_body.get("stream", False) and _should_normalize_tool_call_response(final_body, sanitized_messages):
-        final_body["stream"] = False
-        logger.info("[TOOL_CALL_FIX] Forcing upstream stream=False to normalize tool-call formatting")
     
     return url, headers, final_body, effective_model
 
