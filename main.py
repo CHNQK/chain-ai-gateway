@@ -1234,6 +1234,21 @@ def _parse_text_tool_call(content: str) -> tuple[str | None, object, str]:
             clean_content = (content[:bracket_match.start()] + trailing[consumed:]).strip()
             return func_name, args_obj, clean_content
 
+    # Format: >[{"name": "func", "arguments": {...}}] or [{"name":...}]
+    arr_match = re.search(r">?\s*(\[\s*\{.*?\}\s*\])", content, re.DOTALL)
+    if arr_match:
+        try:
+            arr = json.loads(arr_match.group(1))
+            if isinstance(arr, list) and arr and isinstance(arr[0], dict):
+                item = arr[0]
+                func_name = item.get("name")
+                arguments = item.get("arguments") or item.get("parameters") or {}
+                if func_name:
+                    clean_content = (content[:arr_match.start()] + content[arr_match.end():]).strip()
+                    return func_name, arguments, clean_content
+        except (json.JSONDecodeError, KeyError):
+            pass
+
     tag_match = re.search(r"(?is)<tool_call>\s*(\{.*?\})\s*</tool_call>", content)
     if not tag_match:
         return None, None, content
@@ -1629,11 +1644,15 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                     stream_aborted_reason = ""
                     yielded_any = False
                     record_aborted = False
+                    done_chunk = b"data: [DONE]\n\n"
                     try:
                         async for chunk in resp.aiter_bytes():
                             raw_stream_chunks.append(chunk)
                             yielded_any = True
-                            yield chunk
+                            # Hold back [DONE] so we can inject a fix chunk before it
+                            forwarded = chunk.replace(b"data: [DONE]\n\n", b"")
+                            if forwarded:
+                                yield forwarded
                             try:
                                 for line in chunk.decode(errors="ignore").splitlines():
                                     if not line.startswith("data:"):
@@ -1651,6 +1670,31 @@ async def _forward_stream(virtual_model: str, body: dict, requested_model: str =
                                             collected.append(c)
                             except Exception:
                                 pass
+                        # After stream ends, check for text tool_call and inject fix
+                        full_content = "".join(collected)
+                        func_name, args_payload, _ = _parse_text_tool_call(full_content)
+                        if func_name:
+                            call_id = f"call_{uuid.uuid4().hex[:24]}"
+                            fix_chunk = {
+                                "choices": [{
+                                    "index": 0,
+                                    "delta": {
+                                        "tool_calls": [{
+                                            "index": 0,
+                                            "id": call_id,
+                                            "type": "function",
+                                            "function": {
+                                                "name": func_name,
+                                                "arguments": _serialize_tool_arguments(args_payload)
+                                            }
+                                        }]
+                                    },
+                                    "finish_reason": "tool_calls"
+                                }]
+                            }
+                            yield f"data: {json.dumps(fix_chunk, ensure_ascii=False)}\n\n".encode()
+                            logger.info(f"[TOOL_CALL_FIX] Stream injected fix chunk: {func_name}")
+                        yield done_chunk
                         stream_completed = True
                     except asyncio.CancelledError:
                         stream_aborted_reason = "客户端中断了流式响应"
