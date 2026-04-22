@@ -2203,6 +2203,9 @@ async def admin_overview():
     live_status = _collect_provider_live_status()
     total_providers = len(live_status)
     available_providers = sum(1 for item in live_status.values() if item.get("available"))
+    import psutil
+    cpu_pct = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory()
     return {
         "today": {
             **today,
@@ -2215,6 +2218,12 @@ async def admin_overview():
         },
         "recent_issues": get_recent_issues(limit=8, since_ts=now_ts - 7 * 86400),
         "top_models": get_model_metrics(today_start, limit=8),
+        "system": {
+            "cpu_pct": round(cpu_pct, 1),
+            "mem_used_gb": round(mem.used / 1024**3, 1),
+            "mem_total_gb": round(mem.total / 1024**3, 1),
+            "mem_pct": round(mem.percent, 1),
+        },
     }
 
 

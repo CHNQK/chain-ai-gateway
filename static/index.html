@@ -2482,6 +2482,7 @@ async function loadOverview() {
 function renderOverview(data) {
   const today = data.today || {};
   const providers = data.providers || {};
+  const sys = data.system || {};
   const kpiSnapshot = buildOverviewKpiSnapshot(today, providers);
   document.getElementById('overview-kpis').innerHTML = [
     {
@@ -2511,6 +2512,13 @@ function renderOverview(data) {
       label: '可用上游',
       value: `<span class="kpi-value-split"><span class="kpi-value-inner" data-kpi-key="providers_available">${providers.available || 0}</span><span>/</span><span class="kpi-value-inner" data-kpi-key="providers_total">${providers.total || 0}</span></span>`,
       note: providers.down ? `${providers.down} 个熔断中` : '全部可用',
+    },
+    {
+      key: 'system',
+      tone: '',
+      label: '系统资源',
+      value: `<span class="kpi-value-split" style="font-size:22px"><span title="CPU">${sys.cpu_pct ?? '--'}%</span><span style="margin:0 6px;opacity:.3">·</span><span title="内存">${sys.mem_pct ?? '--'}%</span></span>`,
+      note: `<span class="kpi-note-line">🖥 CPU ${sys.cpu_pct ?? '--'}% &nbsp;·&nbsp; 🧠 内存 ${sys.mem_used_gb ?? '--'} / ${sys.mem_total_gb ?? '--'} GB</span>`,
     },
   ].map(item => `
     <div class="kpi-card ${item.tone}">
